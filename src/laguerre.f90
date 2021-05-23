@@ -6,7 +6,7 @@ module laguerre
   ! t_basis
   !
   ! Laguerre basis, consisting of basis states
-  ! > {| phi_{i} >} for i = 1, ..., <n_basis>
+  ! > {|phi_{i}>} for i = 1, ..., <n_basis>
   ! with coordinate-space representation
   ! > phi_{i}(r, theta, phi) = (varphi_{k_{i}, l_{i}}(r) / r)
   ! >                          * Y_{l_{i}, m_{i}}(theta, phi)
@@ -46,6 +46,14 @@ module laguerre
   ! - <alpha_l(:)> > 0.0, since alpha relates to radial variable, and must be
   !   strictly positive;
   ! - <n_basis> >= 1, since we require at least one basis state in a basis.
+  !
+  ! We note that the basis is ordered in the following way
+  ! > {|phi_{1,m,m}>,     |phi_{2,m,m}>,   ...   |phi_{n_basis_l(m),m,m}>,
+  ! >  |phi_{1,m+1,m}>,   |phi_{2,m+1,m}>, ...   |phi_{n_basis_l(m+1), m+1, m}>,
+  ! >  ...,
+  ! >  |phi_{1,l_max,m}>, |phi_{2,l_max,m}>, ... |phi_{n_basis_l(l_max),m+1,m}>}
+  ! where
+  ! > |phi_{i}> = |phi_{k_{i}, l_{i}, m_{i}}>.
   type t_basis
     integer :: m
     integer :: parity
@@ -67,8 +75,8 @@ contains
 
   ! setup_basis
   !
-  ! For given <m>, <parity>, <l_max>, <n_basis_l>, <alpha_l>, calculates the
-  ! following:
+  ! For given <basis>, <m>, <parity>, <l_max>, <n_basis_l>, <alpha_l>,
+  ! calculates the following:
   ! - <n_basis>;
   ! - <k_list>;
   ! - <l_list>.
