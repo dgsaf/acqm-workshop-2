@@ -18,13 +18,13 @@ module laguerre
   ! where L_{i}^{j} are the generalised Laguerre polynomials.
   !
   ! We construct the basis for given:
-  ! - <l_max>: maximum angular quantum number, <l>, considered in the basis;
-  ! - <n_basis_l>: number of basis functions per <l>;
-  ! - <alpha_l>: value of <alpha> per <l>;
   ! - <m>: the magnetic quantum number, a conserved symmetry of the one-electron
   !   homonuclear-diatomic-molecule system;
   ! - <parity>: the parity quantum number, <parity> = (-1)^<l>, a conserved
-  !   symmetry of the one-electron homonuclear-diatomic-molecule system.
+  !   symmetry of the one-electron homonuclear-diatomic-molecule system;
+  ! - <l_max>: maximum angular quantum number, <l>, considered in the basis;
+  ! - <n_basis_l>: number of basis functions per <l>;
+  ! - <alpha_l>: value of <alpha> per <l>.
   !
   ! As a result of this construction, we also have:
   ! - <n_basis>: the total number of basis states;
@@ -36,23 +36,118 @@ module laguerre
   ! - <n_r>: the number of points in the radial grid;
   ! - <radial>: the radial basis functions, varphi_{k_{i}, l_{i}}(r), calculated
   !   on the radial grid points.
+  !
+  ! For the basis to be valid, we must have that:
+  ! - <parity> = -1, or +1;
+  ! - <l_max> > |<m>|, as we must have <m> in {-<l>, ..., <l>} for all basis
+  !   states;
+  ! - <n_basis_l(:)> >= 0, as we cannot have a negative amount of basis states
+  !   for any value of <l>;
+  ! - <alpha_l(:)> > 0.0, since alpha relates to radial variable, and must be
+  !   strictly positive;
+  ! - <n_basis> >= 1, since we require at least one basis state in a basis.
   type t_basis
+    integer :: m
+    integer :: parity
+
     integer :: l_max
     integer , allocatable :: n_basis_l(:)
     double precision , allocatable :: alpha_l(:)
-    integer :: m
-    integer :: parity
 
     integer :: n_basis
     integer , allocatable :: k_list(:)
     integer , allocatable :: l_list(:)
 
     integer :: n_r
-    double precision , allocatable :: r_grid(:, :)
+    double precision , allocatable :: r_grid(:)
     double precision , allocatable :: radial(:, :)
   end type t_basis
 
 contains
+
+  ! setup_basis
+  !
+  ! For given <m>, <parity>, <l_max>, <n_basis_l>, <alpha_l>, calculates the
+  ! following:
+  ! - <n_basis>;
+  ! - <k_list>;
+  ! - <l_list>.
+  !
+  ! Returns an error code, <i_err>, where:
+  ! - 0 indicates successful execution;
+  ! - 1 indicates invalid arguments.
+  subroutine setup_basis (basis, m, parity, l_max, n_basis_l, alpha_l, i_err)
+    type(t_basis) , intent(inout) :: basis
+    integer , intent(in) :: l_max
+    integer , intent(in) :: n_basis_l(l_max)
+    integer , intent(in) :: alpha_l(l_max)
+    integer , intent(in) :: m
+    integer , intent(in) :: parity
+    integer , intent(out) :: i_err
+    integer :: ii, kk, ll
+
+    ! check if arguments are valid
+    i_err = 0
+
+    if (.not. (abs(parity) == 1) &
+        .or. (l_max < abs(m)) &
+        .or. (any(n_basis_l(:) < 0)) &
+        .or. (any(basis%alpha_l(:) < 1.0D-8))) then
+      i_err = 1
+      return
+    end if
+
+    ! set <m>, <parity>, <l_max>
+    basis%m = m
+    basis%parity = parity
+    basis%l_max = l_max
+
+    ! allocate <n_basis_l>, <alpha_l>
+    allocate(basis%n_basis_l(l_max))
+    allocate(basis%alpha_l(l_max))
+
+    ! set <alpha_l>
+    basis%alpha_l(:) = alpha_l(:)
+
+    ! calculate <n_basis>, and ignore <n_basis_l> for <ll> < |<m>|
+    basis%n_basis = 0
+
+    do ll = 0, l_max
+      if (ll < abs(m)) then
+        basis%n_basis_l(ll) = 0
+      else
+        basis%n_basis_l(ll) = n_basis_l(ll)
+        basis%n_basis = basis%n_basis + n_basis_l(ll)
+      end if
+    end do
+
+    ! if basis is empty, deallocate memory and return an error code
+    if (basis%n_basis == 0) then
+      deallocate(basis%n_basis_l)
+      deallocate(basis%alpha_l)
+
+      i_err = 1
+      return
+    end if
+
+    ! allocate <k_list>, <l_list>
+    allocate(basis%k_list(basis%n_basis))
+    allocate(basis%l_list(basis%n_basis))
+
+    ! set <k_list>, <l_list>
+    ii = 0
+
+    do ll = 0, l_max
+      if (basis%n_basis_l(ll) >= 1) then
+        do kk = 1, basis%n_basis_l(ll)
+          basis%k_list(ii+kk) = kk
+          basis%l_list(ii+kk) = ll
+        end do
+      end if
+      ii = ii + basis%n_basis_l(ll)
+    end do
+
+  end subroutine setup_basis
 
   ! setup_radial
   !
@@ -65,8 +160,9 @@ contains
   ! - <n_basis_l>;
   ! - <alpha_l>;
   ! - <n_basis>.
+  ! That is, a call to setup_basis() should have already been made.
   !
-  ! Also returns an error code, <i_err>, where:
+  ! Returns an error code, <i_err>, where:
   ! - 0 indicates successful execution;
   ! - 1 indicates invalid arguments.
   subroutine setup_radial (basis, n_r, r_grid, i_err)
@@ -76,6 +172,7 @@ contains
     integer , intent(out) :: i_err
     double precision , allocatable :: norm(:)
     double precision :: alpha_grid(n_r)
+    double precision :: alpha
     integer :: n_b_l
     integer :: ii, kk, ll
 
@@ -103,8 +200,9 @@ contains
 
     ! loop over <l>, basis: set <radial>
     do ll = 0, basis%l_max
-      ! in-line <n_basis_l> for current <l>
+      ! in-line <n_basis_l>, <alpha> for current <l>
       n_b_l = basis%n_basis_l(ll)
+      alpha = basis%alpha_l(ll)
 
       ! if there are no basis states for this value of <l>, then cycle
       if (n_b_l == 0) then
@@ -127,7 +225,7 @@ contains
       end if
 
       ! in-line <alpha_grid> for current <l>
-      alpha_grid(:) = basis%alpha_l(ll) * r_grid(:)
+      alpha_grid(:) = alpha * r_grid(:)
 
       ! recurrence relation for basis functions
       if (n_b_l >= 1) then
@@ -152,7 +250,7 @@ contains
 
       ! scale basis radial functions by normalisation constants
       if (n_b_l >= 1) then
-        do kk = 1, n_basis
+        do kk = 1, n_b_l
           basis%radial(:, ii+kk) = basis%radial(:, ii+kk) * norm(kk)
         end do
       end if
