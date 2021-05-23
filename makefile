@@ -35,7 +35,8 @@ INTELFORT = ifort
 GCCCFLAGS = -std=c11
 
 # fortran flags
-GCCFFLAGS = -cpp -ffixed-line-length-none -dM
+GCCFFLAGS = -cpp -ffixed-line-length-none -dM \
+	-Wall -Wextra -Wconversion -pedantic
 INTELFFLAGS = -cpp -extend-source -D_INTELFTN
 
 # cuda

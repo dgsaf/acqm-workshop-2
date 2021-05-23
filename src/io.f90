@@ -37,7 +37,7 @@ contains
     double precision , intent(in) :: A(n_rows, n_cols)
     character(len=*) , intent(in) :: filename
     integer :: fileunit
-    integer :: ii, jj
+    integer :: ii
 
     ! open file
     fileunit = 10
