@@ -8,5 +8,6 @@
   - `bin/`
   - `output/`
   - `extracted_data/`
+  - `analytic_data/`
   - `makefile`
   - `jobs.sh`
