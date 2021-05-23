@@ -36,7 +36,7 @@ GCCCFLAGS = -std=c11
 
 # fortran flags
 GCCFFLAGS = -cpp -ffixed-line-length-none -dM \
-	-Wall -Wextra -Wconversion -pedantic
+	-Wall -Wextra -Wconversion -pedantic -fimplicit-none -fcheck=all
 INTELFFLAGS = -cpp -extend-source -D_INTELFTN
 
 # cuda
@@ -159,8 +159,9 @@ makecommands :
 	if provided this argument:)
 	$(info > )
 	$(info > homonuclear_diatomic : compiles FORTRAN program \
-	homonuclear_diatomic which calculates one-electron homonuclear-diatomic \
-	molecule)
+	homonuclear_diatomic which calculates the potential energy curves, and the \
+	vibrational wave functions for a one-electron homonuclear-diatomic-molecule \
+	system)
 	$(info > $(TAB)sources : homonuclear_diatomic.f90)
 	$(info )
 

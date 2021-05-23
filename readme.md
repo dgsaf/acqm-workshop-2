@@ -1,4 +1,4 @@
-# One-Electron Homonuclear-Diatomic Molecule
+# One-Electron Homonuclear-Diatomic-Molecule System
 
 ## Contents
   - `report/`
