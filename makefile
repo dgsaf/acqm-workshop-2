@@ -193,21 +193,26 @@ obj/wigner.o : src/wigner.f
 	$(FORT) $(COMMONFLAGS) $(FFLAGS) -c src/wigner.f -o obj/wigner.o
 
 #
-obj/laguerre.o : src/laguerre.f90
-	$(FORT) $(COMMONFLAGS) $(FFLAGS) -c src/laguerre.f90 -o obj/laguerre.o \
-	-J mod/
-
-#
 obj/io.o : src/io.f90
 	$(FORT) $(COMMONFLAGS) $(FFLAGS) -c src/io.f90 -o obj/io.o \
 	-J mod/
 
 #
+obj/integrate.o : src/integrate.f90
+	$(FORT) $(COMMONFLAGS) $(FFLAGS) -c src/integrate.f90 -o obj/integrate.o \
+	-J mod/
+
+#
+obj/laguerre.o : src/laguerre.f90
+	$(FORT) $(COMMONFLAGS) $(FFLAGS) -c src/laguerre.f90 -o obj/laguerre.o \
+	-J mod/
+
+#
 bin/homonuclear_diatomic : src/homonuclear_diatomic.f90 \
-	obj/rsg.o obj/laguerre.o obj/io.o
+	obj/rsg.o obj/laguerre.o obj/io.o obj/integrate.o
 
 	$(FORT) $(COMMONFLAGS) $(FFLAGS) -c src/homonuclear_diatomic.f90 \
 	-o obj/homonuclear_diatomic.o -I mod/
 
 	$(FORT) $(COMMONFLAGS) $(FFLAGS) -o bin/homonuclear_diatomic \
-	obj/homonuclear_diatomic.o obj/rsg.o obj/laguerre.o obj/io.o
+	obj/homonuclear_diatomic.o obj/rsg.o obj/laguerre.o obj/io.o obj/integrate.o
