@@ -9,16 +9,20 @@ program potential_curves
   !   - 2: allocation, scalar assignment, short array assignment, etc;
   !   - 3: longer array assignment;
   !   - 4: internal variable assignment, allocation, inspecting loops, etc;
-  ! - <PREFIX>: prefix every debug statement with this string.
-  ! - <ERR>: prefix every error debug statement with this string.
+  ! - <PREFIX>: prefix every debug statement with this string;
+  ! - <ERR>: prefix every error debug statement with this string;
+  ! - <TOL>: double precision tolerance value;
+  ! - <DISPLAY_BASIS>: flag if radial basis functions should be displayed;
+  ! - <DISPLAY_VECTOR>: flag if vectors should be displayed;
+  ! - <DISPLAY_MATRIX>: flag if matrices should be displayed.
 #define STDERR 0
-#define DEBUG_POTENTIAL_CURVES 4
+#define DEBUG_POTENTIAL_CURVES 2
 #define PREFIX "[debug] "
 #define ERR "[error] "
+#define TOL 1.0D-10
 #define DISPLAY_BASIS 0
 #define DISPLAY_VECTOR 1
 #define DISPLAY_MATRIX 1
-#define TOL 1.0D-10
 
   use io
   use laguerre
@@ -182,6 +186,20 @@ program potential_curves
   ! calculate overlap matrix
   call overlap(basis, B, i_err)
 
+  if (i_err /= 0) then
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, ERR, "overlap() failed"
+    write (STDERR, *) PREFIX, ERR, "exiting program potential_curves"
+#endif
+
+    call exit(i_err)
+  end if
+
 #if (DISPLAY_MATRIX)
   write (STDERR, *) "<B>"
   call display_matrix(basis%n_basis, basis%n_basis, B)
@@ -189,6 +207,20 @@ program potential_curves
 
   ! calculate kinetic matrix
   call kinetic(basis, K, i_err)
+
+  if (i_err /= 0) then
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, ERR, "kinetic() failed"
+    write (STDERR, *) PREFIX, ERR, "exiting program potential_curves"
+#endif
+
+    call exit(i_err)
+  end if
 
 #if (DISPLAY_MATRIX)
   write (STDERR, *) "<K>"
@@ -204,6 +236,20 @@ program potential_curves
 
     ! calculate potential matrix
     call potential_e_n(basis, nuclei_charge, lambda_max, rz_grid(ii), V, i_err)
+
+    if (i_err /= 0) then
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+      write (STDERR, *) PREFIX, ERR, "potential_e_n() failed"
+      write (STDERR, *) PREFIX, ERR, "cycling"
+#endif
+
+      cycle
+    end if
 
 #if (DISPLAY_MATRIX)
     write (STDERR, *) "<V>"
@@ -221,6 +267,20 @@ program potential_curves
 
     ! solve electronic eigenvalue equation
     call diagonalise(basis, B, H, eigen_values, eigen_vectors, i_err)
+
+    if (i_err /= 0) then
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+      write (STDERR, *) PREFIX, ERR, "diagonalise() failed"
+      write (STDERR, *) PREFIX, ERR, "cycling"
+#endif
+
+      cycle
+    end if
 
     ! shift energies by the 1/R term
     eigen_values(:) = eigen_values(:) + (dble(nuclei_charge ** 2) / rz_grid(ii))
