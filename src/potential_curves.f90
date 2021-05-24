@@ -39,6 +39,9 @@ program potential_curves
   integer , allocatable :: n_basis_l(:)
   double precision , allocatable :: alpha_l(:)
 
+  integer :: n_basis_l_const
+  double precision :: alpha_l_const
+
   ! one-electron homonuclear-diatomtic-molecule parameters
   integer :: nuclei_charge
   integer :: lambda_max
@@ -66,47 +69,9 @@ program potential_curves
 #endif
 
   ! read parameters from command line arguments
-  call read_input(m, parity, l_max, n_basis_l, alpha_l, nuclei_charge, &
-      lambda_max, d_r, r_max, d_rz, rz_max)
+  call read_input(m, parity, l_max, n_basis_l_const, alpha_l_const, &
+      nuclei_charge, lambda_max, d_r, r_max, d_rz, rz_max, i_err)
 
-  ! check if <r_grid>, <rz_grid> parameters are valid
-  if (d_r < TOL) then
-    i_err = 1
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, ERR, "<d_r> < TOL"
-#endif
-
-  end if
-
-  if (r_max < TOL) then
-    i_err = 1
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, ERR, "<r_max> < TOL"
-#endif
-
-  end if
-
-  if (d_rz < TOL) then
-    i_err = 1
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, ERR, "<d_rz> < TOL"
-#endif
-
-  end if
-
-  if (rz_max < TOL) then
-    i_err = 1
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, ERR, "<rz_max> < TOL"
-#endif
-
-  end if
-
-  ! handle invalid parameters
   if (i_err /= 0) then
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
@@ -114,16 +79,21 @@ program potential_curves
 #endif
 
 #if (DEBUG_POTENTIAL_CURVES >= 1)
-    write (STDERR, *) PREFIX, ERR, "grid parameters are invalid"
+    write (STDERR, *) PREFIX, ERR, "read_input() failed"
     write (STDERR, *) PREFIX, ERR, "exiting program potential_curves"
 #endif
 
     call exit(i_err)
   end if
 
-#if (DEBUG_LAGUERRE >= 2)
-    write (STDERR, *) PREFIX, "radial parameters are valid"
-#endif
+  ! set <n_basis_l>, <alpha_l>
+  if ((i_err == 0) .and. (l_max >= 0)) then
+    allocate(n_basis_l(0:l_max))
+    allocate(alpha_l(0:l_max))
+
+    n_basis_l(:) = n_basis_l_const
+    alpha_l(:) = alpha_l_const
+  end if
 
   ! set <n_r>, <n_rz>
   n_r = ceiling(r_max / d_r) + 1
@@ -270,7 +240,7 @@ contains
 
     if (i_err /= 0) then
 
-#if (DEBUG_LAGUERRE >= 2)
+#if (DEBUG_POTENTIAL_CURVES >= 2)
       write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
 #endif
 
@@ -285,5 +255,223 @@ contains
 #endif
 
   end subroutine diagonalise
+
+  ! read_input
+  subroutine read_input (m, parity, l_max, n_basis_l_const, alpha_l_const, &
+      nuclei_charge, lambda_max, d_r, r_max, d_rz, rz_max, i_err)
+    integer , intent(out) :: m, parity, l_max, n_basis_l_const, &
+        nuclei_charge, lambda_max
+    double precision , intent(out) :: alpha_l_const
+    double precision , intent(out) :: d_r, r_max, d_rz, rz_max
+    integer , intent(out) :: i_err
+    integer :: num_args
+    character(len=50) :: arg
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, "subroutine read_input()"
+#endif
+
+    ! check if command-line arguments are valid
+    i_err = 0
+
+    num_args = command_argument_count()
+
+    if (num_args < 11) then
+      i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+      write (STDERR, *) PREFIX, ERR, "<num_args> < 11"
+
+      write (STDERR, *) PREFIX, ERR, "required arguments are: ",  &
+          "<m> <parity> <l_max> <n_basis_l_const> <alpha_l_const> ", &
+          "<nuclei_charge> <lambda_max> ", &
+          "<d_r> <r_max> <d_rz> <rz_max>"
+#endif
+
+    else
+
+      ! read <m>
+      call get_command_argument(1, arg)
+      read (arg, *) m
+
+      ! read <parity>
+      call get_command_argument(2, arg)
+      read (arg, *) parity
+
+      if (abs(parity) /= 1) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "abs(<parity>) /= 1"
+#endif
+
+      end if
+
+      ! read <l_max>
+      call get_command_argument(3, arg)
+      read (arg, *) l_max
+
+      if (l_max < abs(m)) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "<l_max> < abs(<m>)"
+#endif
+
+      end if
+
+      if (l_max < 0) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "<l_max> < 0"
+#endif
+
+      end if
+
+      ! read <n_basis_l_const>
+      call get_command_argument(4, arg)
+      read (arg, *) n_basis_l_const
+
+      if (n_basis_l_const < 0) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "<n_basis_l_const> < 0)"
+#endif
+
+      end if
+
+      ! read <alpha_l_const>
+      call get_command_argument(5, arg)
+      read (arg, *) alpha_l_const
+
+      if (alpha_l_const < TOL) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "<alpha_l_const> < TOL)"
+#endif
+
+      end if
+
+      ! read <nuclei_charge>
+      call get_command_argument(6, arg)
+      read (arg, *) nuclei_charge
+
+      if (nuclei_charge < 1) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "<nuclei_charge> < 1)"
+#endif
+
+      end if
+
+      ! read <lambda_max>
+      call get_command_argument(7, arg)
+      read (arg, *) lambda_max
+
+      if (lambda_max < 0) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "<nuclei_charge> < 0)"
+#endif
+
+      end if
+
+      ! read <d_r>
+      call get_command_argument(8, arg)
+      read (arg, *) d_r
+
+      if (d_r < TOL) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "<d_r> < TOL"
+#endif
+
+      end if
+
+      ! read <r_max>
+      call get_command_argument(9, arg)
+      read (arg, *) r_max
+
+      if (r_max < TOL) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "<r_max> < TOL"
+#endif
+
+      end if
+
+      ! read <d_rz>
+      call get_command_argument(10, arg)
+      read (arg, *) d_rz
+
+      if (d_rz < TOL) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "<d_rz> < TOL"
+#endif
+
+      end if
+
+      ! read <rz_max>
+      call get_command_argument(11, arg)
+      read (arg, *) rz_max
+
+      if (rz_max < TOL) then
+        i_err = 1
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+        write (STDERR, *) PREFIX, ERR, "<rz_max> < TOL"
+#endif
+
+      end if
+
+    end if
+
+    ! handle invalid command-line arguments
+    if (i_err /= 0) then
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+      write (STDERR, *) PREFIX, ERR, "command-line arguments are invalid"
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine read_input()"
+#endif
+
+      return
+    end if
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "command-line arguments are valid"
+#endif
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "<m> = ", m
+    write (STDERR, *) PREFIX, "<parity> = ", parity
+    write (STDERR, *) PREFIX, "<l_max> = ", l_max
+    write (STDERR, *) PREFIX, "<n_basis_l_const> = ", n_basis_l_const
+    write (STDERR, *) PREFIX, "<alpha_l_const> = ", alpha_l_const
+    write (STDERR, *) PREFIX, "<nuclei_charge> = ", nuclei_charge
+    write (STDERR, *) PREFIX, "<lambda_max> = ", lambda_max
+    write (STDERR, *) PREFIX, "<d_r> = ", d_r
+    write (STDERR, *) PREFIX, "<r_max> = ", r_max
+    write (STDERR, *) PREFIX, "<d_rz> = ", d_rz
+    write (STDERR, *) PREFIX, "<rz_max> = ", rz_max
+#endif
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+      write (STDERR, *) PREFIX, ERR, "end subroutine read_input()"
+#endif
+
+  end subroutine read_input
 
 end program potential_curves
