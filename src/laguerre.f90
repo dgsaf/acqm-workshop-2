@@ -14,7 +14,7 @@ module laguerre
   ! - <PREFIX>: prefix every debug statement with this string.
   ! - <ERR>: prefix every error debug statement with this string.
 #define STDERR 0
-#define DEBUG_LAGUERRE 4
+#define DEBUG_LAGUERRE 2
 #define PREFIX "[debug] "
 #define ERR "[error] "
 
@@ -888,7 +888,7 @@ contains
     integer , intent(in) :: lambda_max
     double precision , intent(out) :: V(basis%n_basis, basis%n_basis)
     integer , intent(out) :: i_err
-    double precision :: temp, integral, dl_i, dl_j, dlam, dm
+    double precision :: temp, integral, dl_i, dl_j, dlam, dm, Yint
     integer :: ii, jj, lambda
 
 #if (DEBUG_LAGUERRE >= 1)
@@ -956,7 +956,7 @@ contains
           temp = temp + (integral * Yint(dl_i, dm, dlam, dble(0), dl_j, dm))
         end do
 
-        V(ii, jj) = - 2.0d0 * temp
+        V(ii, jj) = - 2.0d0 * temp * z
 
 #if (DEBUG_LAGUERRE >= 3)
         write (STDERR, *) PREFIX, ii, jj, V(ii, jj)
@@ -970,5 +970,80 @@ contains
 #endif
 
   end subroutine potential_e_n
+
+  ! overlap_numeric
+  !
+  ! For given <basis>, calculate the overlap matrix elements
+  ! > B_{i, j} = < phi_{i} | phi_{j} > for i, j = 1, ..., <n_basis>
+  ! numerically.
+  !
+  ! Returns an error code, <i_err>, where:
+  ! - 0 indicates successful execution;
+  ! - 1 indicates invalid arguments.
+  subroutine overlap_numeric (basis, B, i_err)
+    type(t_basis) , intent(inout) :: basis
+    double precision , intent(out) :: B(basis%n_basis, basis%n_basis)
+    integer , intent(out) :: i_err
+    integer :: ii, jj
+
+#if (DEBUG_LAGUERRE >= 1)
+    write (STDERR, *) PREFIX, "subroutine overlap_numeric()"
+#endif
+
+    ! check if arguments are valid
+    i_err = 0
+
+    if (.not. is_valid(basis)) then
+      i_err = 1
+    end if
+
+    ! handle invalid arguments
+    if (i_err /= 0) then
+
+#if (DEBUG_LAGUERRE >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG_LAGUERRE >= 1)
+      write (STDERR, *) PREFIX, ERR, "arguments are invalid"
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine overlap_numeric()"
+#endif
+
+      return
+    end if
+
+#if (DEBUG_LAGUERRE >= 2)
+    write (STDERR, *) PREFIX, "arguments are valid"
+#endif
+
+    ! initialise <B>
+    B(:, :) = 0.0d0
+
+    ! calculate overlap matrix elements
+#if (DEBUG_LAGUERRE >= 3)
+    write (STDERR, *) PREFIX, "<i>, <j>, B(i, j)"
+#endif
+
+    do jj = 1, basis%n_basis
+
+      do ii = 1, basis%n_basis
+
+        if (basis%l_list(ii) == basis%l_list(jj)) then
+          B(ii, jj) = integrate_trapezoid(basis%n_r, basis%r_grid, &
+              basis%radial(:, ii) * basis%radial(:, jj))
+        end if
+
+#if (DEBUG_LAGUERRE >= 3)
+        write (STDERR, *) PREFIX, ii, jj, B(ii, jj)
+#endif
+
+      end do
+    end do
+
+#if (DEBUG_LAGUERRE >= 1)
+    write (STDERR, *) PREFIX, "end subroutine overlap_numeric()"
+#endif
+
+  end subroutine overlap_numeric
 
 end module laguerre

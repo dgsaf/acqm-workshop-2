@@ -12,7 +12,7 @@ module integrate
   ! - <PREFIX>: prefix every debug statement with this string.
   ! - <ERR>: prefix every error debug statement with this string.
 #define STDERR 0
-#define DEBUG_INTEGRATE 4
+#define DEBUG_INTEGRATE 0
 #define PREFIX "[debug] "
 #define ERR "[error] "
 
