@@ -1,14 +1,18 @@
 !>
 module laguerre
 
-  ! debug definitions and macros
+  ! debug compilation
+  ! - <STDERR>: file unit for stderr output;
+  ! - <DEBUG>: verbosity of debug statements;
+  !   - 0: none;
+  !   - 1: control flow (entering and exiting subroutines/functions);
+  !   - 2: allocation, scalar assignment, short array assignment, etc;
+  !   - 3: longer array assignment;
+  !   - 4: internal variable assignment, allocation, inspecting loops, etc;
+  ! - <PREFIX>: prefix every debug statement with this string.
 #define STDERR 0
 #define DEBUG 3
-
-#define DEBUG_STR(_level, _str) if (DEBUG >= _level) write (STDERR, *) \
-  "[debug] ", _str
-#define DEBUG_VAR(_level, _arg, _val) \
-  if (DEBUG >= _level) write (STDERR, *) "[debug] ", _arg, " = ", _val
+#define PREFIX "[debug] "
 
   implicit none
 
@@ -91,8 +95,8 @@ contains
   ! - <l_list>.
   !
   ! Returns an error code, <i_err>, where:
-  ! - 0 indicates successful execution;
-  ! - 1 indicates invalid arguments.
+  ! - 0: indicates successful execution;
+  ! - 1: indicates invalid arguments.
   subroutine setup_basis (basis, m, parity, l_max, n_basis_l, alpha_l, i_err)
     type(t_basis) , intent(inout) :: basis
     integer , intent(in) :: l_max
@@ -103,7 +107,9 @@ contains
     integer , intent(out) :: i_err
     integer :: ii, kk, ll
 
-    DEBUG_STR(1, "subroutine setup_basis()")
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "subroutine setup_basis()"
+#endif
 
     ! check if arguments are valid
     i_err = 0
@@ -111,44 +117,76 @@ contains
     if (.not. (abs(parity) == 1) &
         .or. (l_max < abs(m)) &
         .or. (any(n_basis_l(:) < 0)) &
-        .or. (any(basis%alpha_l(:) < 1.0D-8))) then
+        .or. (any(alpha_l(:) < 1.0D-8))) then
+
       i_err = 1
+
+#if (DEBUG >= 1)
+      write (STDERR, *) PREFIX, "arguments are invalid"
+      write (STDERR, *) PREFIX, "<i_err> = ", i_err
+      write (STDERR, *) PREFIX, "exiting subroutine setup_basis()"
+#endif
+
       return
     end if
 
-    DEBUG_STR(1, "arguments are valid")
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "arguments are valid"
+#endif
 
     ! set <m>, <parity>, <l_max>
     basis%m = m
     basis%parity = parity
     basis%l_max = l_max
 
-    DEBUG_VAR(1, "<basis%m>", basis%m)
-    DEBUG_VAR(1, "<basis%parity>", basis%parity)
-    DEBUG_VAR(1, "<basis%l_max>", basis%l_max)
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "<basis%m> = ", basis%m
+    write (STDERR, *) PREFIX, "<basis%parity> = ", basis%parity
+    write (STDERR, *) PREFIX, "<basis%l_max> = ", basis%l_max
+#endif
 
     ! allocate <n_basis_l>, <alpha_l>
     allocate(basis%n_basis_l(0:l_max))
     allocate(basis%alpha_l(0:l_max))
 
-    DEBUG_STR(1, "allocated <basis%n_basis_l>")
-    DEBUG_STR(1, "allocated <basis%n_alpha_l>")
-
-    ! set <alpha_l>
-    basis%alpha_l(:) = alpha_l(:)
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "allocated <basis%n_basis_l>"
+    write (STDERR, *) PREFIX, "allocated <basis%alpha_l>"
+#endif
 
     ! calculate <n_basis>, ignoring <n_basis_l> for <l> < |<m>|, and/or for
     ! (-1)**<l> /= <parity>
     basis%n_basis = 0
 
     do ll = 0, l_max
+
+#if (DEBUG >= 4)
+      write (STDERR, *) PREFIX, "<l> = ", ll
+#endif
+
       if ((ll < abs(m)) .or. ((-1)**ll /= parity)) then
         basis%n_basis_l(ll) = 0
+
+#if (DEBUG >= 4)
+        write (STDERR, *) PREFIX, "ignoring due to basis symmetry"
+#endif
+
       else
         basis%n_basis_l(ll) = n_basis_l(ll)
         basis%n_basis = basis%n_basis + n_basis_l(ll)
       end if
     end do
+
+    ! set <alpha_l>
+    basis%alpha_l(:) = alpha_l(:)
+
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "<l>, <basis%n_basis_l>, <basis%alpha_l>"
+    do ll = 0, basis%l_max
+      write (STDERR, *) PREFIX, ll, basis%n_basis_l(ll), basis%alpha_l(ll)
+    end do
+    write (STDERR, *) PREFIX, "<basis%n_basis> = ", basis%n_basis
+#endif
 
     ! if basis is empty, deallocate memory and return an error code
     if (basis%n_basis == 0) then
@@ -156,12 +194,24 @@ contains
       deallocate(basis%alpha_l)
 
       i_err = 1
+
+#if (DEBUG >= 1)
+      write (STDERR, *) PREFIX, "basis is empty"
+      write (STDERR, *) PREFIX, "<i_err> = ", i_err
+      write (STDERR, *) PREFIX, "exiting subroutine setup_basis()"
+#endif
+
       return
     end if
 
     ! allocate <k_list>, <l_list>
     allocate(basis%k_list(basis%n_basis))
     allocate(basis%l_list(basis%n_basis))
+
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "allocated <basis%k_list>"
+    write (STDERR, *) PREFIX, "allocated <basis%l_list>"
+#endif
 
     ! set <k_list>, <l_list>
     ii = 0
@@ -175,6 +225,17 @@ contains
       end if
       ii = ii + basis%n_basis_l(ll)
     end do
+
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "<i>, <basis%k_list>, <basis%l_list>"
+    do ii = 1, basis%n_basis
+      write (STDERR, *) PREFIX, ii, basis%k_list(ii), basis%l_list(ii)
+    end do
+#endif
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "end subroutine setup_basis()"
+#endif
 
   end subroutine setup_basis
 
@@ -197,13 +258,17 @@ contains
   subroutine setup_radial (basis, n_r, r_grid, i_err)
     type(t_basis) , intent(inout) :: basis
     integer , intent(in) :: n_r
-    integer , intent(in) :: r_grid(n_r)
+    double precision , intent(in) :: r_grid(n_r)
     integer , intent(out) :: i_err
     double precision , allocatable :: norm(:)
     double precision :: alpha_grid(n_r)
     double precision :: alpha
     integer :: n_b_l
-    integer :: ii, kk, ll
+    integer :: ii, jj, kk, ll
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "subroutine setup_radial()"
+#endif
 
     ! check if arguments are valid
     i_err = 0
@@ -212,49 +277,121 @@ contains
         .or. (any(basis%n_basis_l(:) < 0)) &
         .or. (any(basis%alpha_l(:) < 0.0d0)) &
         .or. (n_r < 1)) then
+
       i_err = 1
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "arguments are invalid"
+    write (STDERR, *) PREFIX, "<i_err> = ", i_err
+    write (STDERR, *) PREFIX, "exiting subroutine setup_radial()"
+#endif
+
       return
     end if
 
-    ! basis: set <n_r>, allocate <r_grid>, <radial>
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "arguments are valid"
+#endif
+
+    ! set <n_r>
     basis%n_r = n_r
+
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "<basis%n_r> = ", basis%n_r
+#endif
+
+    ! allocate <r_grid>, <radial>
     allocate(basis%r_grid(n_r))
     allocate(basis%radial(n_r, basis%n_basis))
 
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "allocated <basis%r_grid>"
+    write (STDERR, *) PREFIX, "allocated <basis%radial>"
+#endif
+
     ! basis: set <r_grid>
     basis%r_grid(:) = r_grid(:)
+
+#if (DEBUG >= 3)
+    write (STDERR, *) PREFIX, "<index>, <basis%r_grid>"
+    do jj = 1, basis%n_r
+      write (STDERR, *) PREFIX, jj, basis%r_grid(jj)
+    end do
+#endif
 
     ! basis function index offset, incremented by n_basis_l(ll) after each loop
     ii = 0
 
     ! loop over <l>, basis: set <radial>
     do ll = 0, basis%l_max
+
+#if (DEBUG >= 3)
+      write (STDERR, *) PREFIX, "<l> = ", ll
+      write (STDERR, *) PREFIX, "<i> = ", ii
+#endif
+
       ! in-line <n_basis_l>, <alpha> for current <l>
       n_b_l = basis%n_basis_l(ll)
       alpha = basis%alpha_l(ll)
 
+#if (DEBUG >= 4)
+      write (STDERR, *) PREFIX, "<n_b_l> = ", n_b_l
+      write (STDERR, *) PREFIX, "<alpha> = ", alpha
+#endif
+
       ! if there are no basis states for this value of <l>, then cycle
       if (n_b_l == 0) then
+
+#if (DEBUG >= 4)
+        write (STDERR, *) PREFIX, "no basis state for this value of <l>"
+        write (STDERR, *) PREFIX, "cycling"
+#endif
+
         cycle
       end if
 
       ! allocate normalisation constant array
       allocate(norm(n_b_l))
 
+#if (DEBUG >= 4)
+      write (STDERR, *) PREFIX, "allocated <norm>"
+#endif
+
       ! recurrence relation for basis normalisation constants
+#if (DEBUG >= 4)
+      write (STDERR, *) PREFIX, "<k>, <norm>"
+#endif
+
       if (n_b_l >= 1) then
         norm(1) = sqrt(alpha / dble((ll+1) * gamma(dble((2*ll)+2))))
+
+#if (DEBUG >= 4)
+        write (STDERR, *) PREFIX, 1, norm(1)
+#endif
+
       end if
 
       if (n_b_l >= 2) then
         do kk = 2, n_b_l
           norm(kk) = norm(kk-1) * sqrt(dble((kk-1) * (kk-1+ll)) &
               / dble((kk+ll) * (kk+(2*ll))))
+
+#if (DEBUG >= 4)
+          write (STDERR, *) PREFIX, kk, norm(kk)
+#endif
+
         end do
       end if
 
       ! in-line <alpha_grid> for current <l>
       alpha_grid(:) = alpha * r_grid(:)
+
+#if (DEBUG >= 4)
+      write (STDERR, *) PREFIX, "<index>, <alpha_grid>"
+      do jj = 1, basis%n_r
+        write (STDERR, *) PREFIX, jj, alpha_grid(jj)
+      end do
+#endif
 
       ! recurrence relation for basis functions
       if (n_b_l >= 1) then
@@ -277,6 +414,13 @@ contains
         end do
       end if
 
+#if (DEBUG >= 4)
+      write (STDERR, *) PREFIX, "<index>, <basis%radial> (un-normalised)"
+      do jj = 1, basis%n_r
+        write (STDERR, *) PREFIX, jj, basis%radial(jj, ii+1:ii+n_b_l)
+      end do
+#endif
+
       ! scale basis radial functions by normalisation constants
       if (n_b_l >= 1) then
         do kk = 1, n_b_l
@@ -284,12 +428,28 @@ contains
         end do
       end if
 
+#if (DEBUG >= 3)
+      write (STDERR, *) PREFIX, "<index>, <basis%radial>"
+      do jj = 1, basis%n_r
+        write (STDERR, *) PREFIX, jj, basis%radial(jj, ii+1:ii+n_b_l)
+      end do
+#endif
+
       ! increment basis index offset
       ii = ii + n_b_l
 
       ! deallocate norm
       deallocate(norm)
+
+#if (DEBUG >= 4)
+      write (STDERR, *) PREFIX, "deallocated <norm>"
+#endif
+
     end do
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "end subroutine setup_basis()"
+#endif
 
   end subroutine setup_radial
 

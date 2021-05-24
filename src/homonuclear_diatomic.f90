@@ -17,6 +17,9 @@ program homonuclear_diatomic
   double precision , allocatable :: alpha_l(:)
 
   ! radial grid variables
+  integer :: n_r
+  double precision :: d_r, r_max
+  double precision , allocatable :: r_grid(:)
 
   ! basis variables
   type(t_basis) :: basis
@@ -25,8 +28,10 @@ program homonuclear_diatomic
 
   ! local variables
   integer :: i_err
+  integer :: ii
 
-  ! program execution
+!> program execution
+  ! molecule parameters
   m = 0
   parity = 1
   l_max = 5
@@ -38,6 +43,18 @@ program homonuclear_diatomic
   alpha_l(:) = 1.0d0
 
   call setup_basis(basis, m, parity, l_max, n_basis_l, alpha_l, i_err)
+
+  ! radial grid parameters
+  d_r = 1
+  r_max = 10.0
+  n_r = ceiling(r_max / d_r) + 1
+  allocate(r_grid(n_r))
+
+  do ii = 1, n_r
+    r_grid(ii) = d_r * dble(ii - 1)
+  end do
+
+  call setup_radial(basis, n_r, r_grid, i_err)
 
 contains
 
