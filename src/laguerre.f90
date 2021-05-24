@@ -1,6 +1,8 @@
 !>
 module laguerre
 
+  use integrate
+
   ! debug compilation
   ! - <STDERR>: file unit for stderr output;
   ! - <DEBUG_LAGUERRE>: verbosity of debug statements;
@@ -746,7 +748,7 @@ contains
 
   ! kinetic
   !
-  ! For given <basis>, calculate the overlap matrix elements
+  ! For given <basis>, calculate the kinetic matrix elements
   ! > K_{i, j} = < phi_{i} | K | phi_{j} > for i, j = 1, ..., <n_basis>
   ! using analytic properties of the Laguerre basis.
   !
@@ -861,5 +863,112 @@ contains
 #endif
 
   end subroutine kinetic
+
+  ! potential_e_n
+  !
+  ! For given <basis>, <z>, <rz>, <lambda_max> calculate the electron-nuclei
+  ! potential matrix elements
+  ! > V_{i, j} = < phi_{i} | V | phi_{j} > for i, j = 1, ..., <n_basis>
+  ! where the V(r) is the electron-nuclei potential of a one-electron
+  ! homonuclear-diatomic-molecule system, given by
+  ! > V(r) = - z * ((1 / |r + R/2|) + (1 / |r - R/2|))
+  ! where <z> is the atomic charge of the nuclei, r is the electronic position
+  ! vector and R is the nuclei position vector, and where <rz> is the axial
+  ! distance between the nuclear centres.
+  ! The matrix elements are calculated numerically, by expanding the potential
+  ! in terms of spherical harmonics, up to <lambda_max>
+  !
+  ! Returns an error code, <i_err>, where:
+  ! - 0 indicates successful execution;
+  ! - 1 indicates invalid arguments.
+  subroutine potential_e_n (basis, z, rz, lambda_max, V, i_err)
+    type(t_basis) , intent(inout) :: basis
+    integer , intent(in) :: z
+    double precision , intent(in) :: rz
+    integer , intent(in) :: lambda_max
+    double precision , intent(out) :: V(basis%n_basis, basis%n_basis)
+    integer , intent(out) :: i_err
+    double precision :: temp, integral, dl_i, dl_j, dlam, dm
+    integer :: ii, jj, lambda
+
+#if (DEBUG_LAGUERRE >= 1)
+    write (STDERR, *) PREFIX, "subroutine potential_e_n()"
+#endif
+
+    ! check if arguments are valid
+    i_err = 0
+
+    if (.not. is_valid(basis)) then
+      i_err = 1
+    end if
+
+    ! handle invalid arguments
+    if (i_err /= 0) then
+
+#if (DEBUG_LAGUERRE >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG_LAGUERRE >= 1)
+      write (STDERR, *) PREFIX, ERR, "arguments are invalid"
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine potential_e_n()"
+#endif
+
+      return
+    end if
+
+#if (DEBUG_LAGUERRE >= 2)
+    write (STDERR, *) PREFIX, "arguments are valid"
+#endif
+
+    ! initialise <V>
+    V(:, :) = 0.0d0
+
+    ! <basis%m> as double, used in call to subroutine yint()
+    dm = dble(basis%m)
+
+    ! calculate electron-nuclei potential matrix elements
+#if (DEBUG_LAGUERRE >= 3)
+    write (STDERR, *) PREFIX, "<i>, <j>, V(i, j)"
+#endif
+
+    do jj = 1, basis%n_basis
+      ! <l_j> as double, used in call to subroutine yint()
+      dl_j = dble(basis%l_list(jj))
+
+      do ii = 1, basis%n_basis
+        ! initialise temp sum
+        temp = 0.0d0
+
+        ! <l_i> as double, used in call to subroutine yint()
+        dl_i = dble(basis%l_list(ii))
+
+        ! sum over spherical harmonic expansion
+        do lambda = 0, lambda_max, 2
+          ! <lambda> as double, used in call to subroutine yint()
+          dlam = dble(lambda)
+
+          integral = integrate_trapezoid(basis%n_r, basis%r_grid, &
+              basis%radial(:, ii) * basis%radial(:, jj) &
+              * (min(basis%r_grid(:), rz/2.0d0) ** lambda) &
+              / (max(basis%r_grid(:), rz/2.0d0) ** (lambda+1)))
+
+          temp = temp + (integral * Yint(dl_i, dm, dlam, dble(0), dl_j, dm))
+        end do
+
+        V(ii, jj) = - 2.0d0 * temp
+
+#if (DEBUG_LAGUERRE >= 3)
+        write (STDERR, *) PREFIX, ii, jj, V(ii, jj)
+#endif
+
+      end do
+    end do
+
+#if (DEBUG_LAGUERRE >= 1)
+    write (STDERR, *) PREFIX, "end subroutine potential_e_n()"
+#endif
+
+  end subroutine potential_e_n
 
 end module laguerre

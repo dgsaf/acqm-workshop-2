@@ -81,10 +81,11 @@ contains
       w(ii) = (x(ii+1) - x(ii-1)) / 2.0d0
 
 #if (DEBUG_INTEGRATE >= 4)
-    write (STDERR, *) PREFIX, ii, w(ii)
+      write (STDERR, *) PREFIX, ii, w(ii)
 #endif
 
     end do
+
     w(n) = (x(n) - x(n-1)) / 2.0d0
 
 #if (DEBUG_INTEGRATE >= 4)
