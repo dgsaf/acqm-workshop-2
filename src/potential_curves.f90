@@ -612,7 +612,7 @@ contains
         "nuclei_charge-", trim(adjustl(str_nuclei_charge)), ".", &
         "lambda_max-", trim(adjustl(str_lambda_max)), ".", &
         "d_r-", trim(adjustl(str_d_r)), ".", &
-        "r_max-", trim(adjustl(str_r_max)), ".", &
+        "r_max-", trim(adjustl(str_r_max)), "/", &
         "rz-", trim(adjustl(str_rz)), "/"
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
