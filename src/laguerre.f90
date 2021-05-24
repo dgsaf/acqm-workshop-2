@@ -10,9 +10,11 @@ module laguerre
   !   - 3: longer array assignment;
   !   - 4: internal variable assignment, allocation, inspecting loops, etc;
   ! - <PREFIX>: prefix every debug statement with this string.
+  ! - <ERR>: prefix every error debug statement with this string.
 #define STDERR 0
-#define DEBUG 3
+#define DEBUG 2
 #define PREFIX "[debug] "
+#define ERR "[error] "
 
   implicit none
 
@@ -114,17 +116,83 @@ contains
     ! check if arguments are valid
     i_err = 0
 
-    if (.not. (abs(parity) == 1) &
-        .or. (l_max < abs(m)) &
-        .or. (any(n_basis_l(:) < 0)) &
-        .or. (any(alpha_l(:) < 1.0D-8))) then
-
+    if (abs(parity) /= 1) then
       i_err = 1
 
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "abs(<parity>) /= 1"
+#endif
+
+    end if
+
+    if (l_max < abs(m)) then
+      i_err = 1
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<l_max> < abs(<m>)"
+#endif
+
+    end if
+
+    if (l_max < 0) then
+      i_err = 1
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<l_max> < 0"
+#endif
+
+    else
+      if (any(n_basis_l(:) < 0)) then
+        i_err = 1
+
+#if (DEBUG >= 2)
+        write (STDERR, *) PREFIX, ERR, "any(<n_basis_l(:)> < 0)"
+#endif
+
+      end if
+
+      if (any(alpha_l(:) < 1.0D-8)) then
+        i_err = 1
+
+#if (DEBUG >= 2)
+        write (STDERR, *) PREFIX, ERR, "any(<alpha_l(:)> < 1.0D-8)"
+#endif
+
+      end if
+    end if
+
+    ! handle invalid arguments
+    if (i_err /= 0) then
+
 #if (DEBUG >= 1)
-      write (STDERR, *) PREFIX, "arguments are invalid"
-      write (STDERR, *) PREFIX, "<i_err> = ", i_err
-      write (STDERR, *) PREFIX, "exiting subroutine setup_basis()"
+      write (STDERR, *) PREFIX, ERR, "arguments are invalid"
+#endif
+
+      ! set scalar variables to erroneous values
+      basis%m = m
+      basis%parity = parity
+      basis%l_max = -1
+      basis%n_basis = 0
+      basis%n_r = 0
+
+#if (DEBUG >= 1)
+      write (STDERR, *) PREFIX, ERR, &
+          "<basis> array variables will be left un-allocated"
+      write (STDERR, *) PREFIX, ERR, &
+          "<basis> scalar variables set to erroneous values"
+#endif
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<basis%m> = ", basis%m
+      write (STDERR, *) PREFIX, ERR, "<basis%parity> = ", basis%parity
+      write (STDERR, *) PREFIX, ERR, "<basis%l_max> = ", basis%l_max
+      write (STDERR, *) PREFIX, ERR, "<basis%n_basis> = ", basis%n_basis
+      write (STDERR, *) PREFIX, ERR, "<basis%n_r> = ", basis%n_r
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG >= 1)
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine setup_basis()"
 #endif
 
       return
@@ -196,9 +264,9 @@ contains
       i_err = 1
 
 #if (DEBUG >= 1)
-      write (STDERR, *) PREFIX, "basis is empty"
-      write (STDERR, *) PREFIX, "<i_err> = ", i_err
-      write (STDERR, *) PREFIX, "exiting subroutine setup_basis()"
+      write (STDERR, *) PREFIX, ERR, "basis is empty"
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine setup_basis()"
 #endif
 
       return
@@ -231,6 +299,14 @@ contains
     do ii = 1, basis%n_basis
       write (STDERR, *) PREFIX, ii, basis%k_list(ii), basis%l_list(ii)
     end do
+#endif
+
+    ! set <n_r> to zero, indicating radial basis functions have not yet been
+    ! plotted on a grid
+    basis%n_r = 0
+
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "<basis%n_r> = ", basis%n_r
 #endif
 
 #if (DEBUG >= 1)
@@ -273,17 +349,65 @@ contains
     ! check if arguments are valid
     i_err = 0
 
-    if ((basis%n_basis < 1) &
-        .or. (any(basis%n_basis_l(:) < 0)) &
-        .or. (any(basis%alpha_l(:) < 0.0d0)) &
-        .or. (n_r < 1)) then
-
+    if (basis%n_basis < 1) then
       i_err = 1
 
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<basis%n_basis> < 1"
+#endif
+
+    end if
+
+    if (basis%l_max < 0) then
+      i_err = 1
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<basis%l_max> < 0"
+#endif
+
+    else
+      if (any(basis%n_basis_l(:) < 0)) then
+        i_err = 1
+
+#if (DEBUG >= 2)
+        write (STDERR, *) PREFIX, ERR, "any(<basis%n_basis_l(:)> < 0)"
+#endif
+
+      end if
+
+      if (any(basis%alpha_l(:) < 1.0D-8)) then
+        i_err = 1
+
+#if (DEBUG >= 2)
+        write (STDERR, *) PREFIX, ERR, "any(<basis%alpha_l(:)> < 1.0D-8)"
+#endif
+      end if
+    end if
+
+    if (n_r < 1) then
+      i_err = 1
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<n_r> < 1"
+#endif
+
+    end if
+
+    ! handle invalid arguments
+    if (i_err /= 0) then
+
 #if (DEBUG >= 1)
-    write (STDERR, *) PREFIX, "arguments are invalid"
-    write (STDERR, *) PREFIX, "<i_err> = ", i_err
-    write (STDERR, *) PREFIX, "exiting subroutine setup_radial()"
+      write (STDERR, *) PREFIX, ERR, "arguments are invalid"
+      write (STDERR, *) PREFIX, ERR, &
+          "<basis> array variables will be left un-allocated"
+#endif
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG >= 1)
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine setup_radial()"
 #endif
 
       return
@@ -452,5 +576,96 @@ contains
 #endif
 
   end subroutine setup_radial
+
+  ! overlap_analytic
+  !
+  ! For given <basis>, calculate the overlap matrix elements
+  ! > B_{i, j} = < phi_{i} | phi_{j} > for i, j = 1, ..., <n_basis>
+  ! using analytic properties of the Laguerre basis.
+  !
+  ! Returns an error code, <i_err>, where:
+  ! - 0 indicates successful execution;
+  ! - 1 indicates invalid arguments.
+  subroutine overlap_analytic (basis, B, i_err)
+    type(t_basis) , intent(inout) :: basis
+    double precision , intent(out) :: B(basis%n_basis, basis%n_basis)
+    integer , intent(out) :: i_err
+    integer :: ii
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "subroutine overlap_analytic()"
+#endif
+
+    ! check if arguments are valid
+    i_err = 0
+
+    if ((basis%l_max < 0) .or. (basis%n_basis < 1)) then
+      i_err = 1
+
+#if (DEBUG >= 1)
+      write (STDERR, *) PREFIX, "arguments are invalid"
+      write (STDERR, *) PREFIX, "<i_err> = ", i_err
+      write (STDERR, *) PREFIX, "exiting subroutine overlap_analytic()"
+#endif
+
+      return
+    end if
+
+  end subroutine overlap_analytic
+
+
+  ! is_valid
+  logical function is_valid (basis)
+    type(t_basis) , intent(inout) :: basis
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "function is_valid()"
+#endif
+
+    ! check if <basis> is valid
+    is_valid = .true.
+
+    if (basis%n_basis < 1) then
+      is_valid = .false.
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<basis%n_basis> < 1"
+#endif
+
+    end if
+
+    if (basis%l_max < 0) then
+      is_valid = .false.
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<basis%l_max> < 0"
+#endif
+
+    else
+      if (any(basis%n_basis_l(:) < 0)) then
+        is_valid = .false.
+
+#if (DEBUG >= 2)
+        write (STDERR, *) PREFIX, ERR, "any(<basis%n_basis_l(:)> < 0)"
+#endif
+
+      end if
+
+      if (any(basis%alpha_l(:) < 1.0D-8)) then
+        is_valid = .false.
+
+#if (DEBUG >= 2)
+        write (STDERR, *) PREFIX, ERR, "any(<basis%alpha_l(:)> < 1.0D-8)"
+#endif
+
+      end if
+    end if
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "end function is_valid()"
+#endif
+
+    return
+  end function is_valid
 
 end module laguerre

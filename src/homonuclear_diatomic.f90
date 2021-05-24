@@ -34,7 +34,7 @@ program homonuclear_diatomic
   ! molecule parameters
   m = 0
   parity = 1
-  l_max = 5
+  l_max = -1
 
   allocate(n_basis_l(0:l_max))
   allocate(alpha_l(0:l_max))
