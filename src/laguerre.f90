@@ -424,8 +424,8 @@ contains
     double precision , allocatable :: norm(:)
     double precision :: alpha_grid(n_r)
     double precision :: alpha
-    integer :: n_b_l
-    integer :: ii, jj, kk, ll
+    integer :: n_b_l, offset
+    integer :: jj, kk, ll
 
 #if (DEBUG >= 1)
     write (STDERR, *) PREFIX, "subroutine setup_radial()"
@@ -488,21 +488,21 @@ contains
     basis%r_grid(:) = r_grid(:)
 
 #if (DEBUG >= 3)
-    write (STDERR, *) PREFIX, "<index>, <basis%r_grid>"
+    write (STDERR, *) PREFIX, "<radial index>, <basis%r_grid>"
     do jj = 1, basis%n_r
       write (STDERR, *) PREFIX, jj, basis%r_grid(jj)
     end do
 #endif
 
     ! basis function index offset, incremented by n_basis_l(ll) after each loop
-    ii = 0
+    offset = 0
 
     ! loop over <l>, basis: set <radial>
     do ll = 0, basis%l_max
 
 #if (DEBUG >= 3)
       write (STDERR, *) PREFIX, "<l> = ", ll
-      write (STDERR, *) PREFIX, "<i> = ", ii
+      write (STDERR, *) PREFIX, "<offset> = ", offset
 #endif
 
       ! in-line <n_basis_l>, <alpha> for current <l>
@@ -518,7 +518,7 @@ contains
       if (n_b_l == 0) then
 
 #if (DEBUG >= 4)
-        write (STDERR, *) PREFIX, "no basis state for this value of <l>"
+        write (STDERR, *) PREFIX, "no basis states for this value of <l>"
         write (STDERR, *) PREFIX, "cycling"
 #endif
 
@@ -562,7 +562,7 @@ contains
       alpha_grid(:) = alpha * r_grid(:)
 
 #if (DEBUG >= 4)
-      write (STDERR, *) PREFIX, "<index>, <alpha_grid>"
+      write (STDERR, *) PREFIX, "<radial index>, <alpha_grid>"
       do jj = 1, basis%n_r
         write (STDERR, *) PREFIX, jj, alpha_grid(jj)
       end do
@@ -570,48 +570,48 @@ contains
 
       ! recurrence relation for basis functions
       if (n_b_l >= 1) then
-        basis%radial(:, ii+1) = ((2.0d0 * alpha_grid(:)) ** (ll+1)) &
+        basis%radial(:, offset+1) = ((2.0d0 * alpha_grid(:)) ** (ll+1)) &
             * exp(-alpha_grid(:))
       end if
 
       if (n_b_l >= 2) then
-        basis%radial(:, ii+2) = 2.0d0 * (dble(ll+1) - alpha_grid(:)) &
-            * basis%radial(:, ii+1)
+        basis%radial(:, offset+2) = 2.0d0 * (dble(ll+1) - alpha_grid(:)) &
+            * basis%radial(:, offset+1)
       end if
 
       if (n_b_l >= 3) then
         do kk = 3, n_b_l
-          basis%radial(:, ii+kk) = &
+          basis%radial(:, offset+kk) = &
               ((2.0d0 * (dble(kk-1+ll) - alpha_grid(:)) &
-              * basis%radial(:, ii+kk-1)) &
-              - dble(kk+(2*ll)-1) * basis%radial(:, ii+kk-2)) &
+              * basis%radial(:, offset+kk-1)) &
+              - dble(kk+(2*ll)-1) * basis%radial(:, offset+kk-2)) &
               / dble(kk-1)
         end do
       end if
 
 #if (DEBUG >= 4)
-      write (STDERR, *) PREFIX, "<index>, <basis%radial> (un-normalised)"
+      write (STDERR, *) PREFIX, "<radial index>, <basis%radial> (un-normalised)"
       do jj = 1, basis%n_r
-        write (STDERR, *) PREFIX, jj, basis%radial(jj, ii+1:ii+n_b_l)
+        write (STDERR, *) PREFIX, jj, basis%radial(jj, offset+1:offset+n_b_l)
       end do
 #endif
 
       ! scale basis radial functions by normalisation constants
       if (n_b_l >= 1) then
         do kk = 1, n_b_l
-          basis%radial(:, ii+kk) = basis%radial(:, ii+kk) * norm(kk)
+          basis%radial(:, offset+kk) = basis%radial(:, offset+kk) * norm(kk)
         end do
       end if
 
 #if (DEBUG >= 3)
-      write (STDERR, *) PREFIX, "<index>, <basis%radial>"
+      write (STDERR, *) PREFIX, "<radial index>, <basis%radial>"
       do jj = 1, basis%n_r
-        write (STDERR, *) PREFIX, jj, basis%radial(jj, ii+1:ii+n_b_l)
+        write (STDERR, *) PREFIX, jj, basis%radial(jj, offset+1:offset+n_b_l)
       end do
 #endif
 
       ! increment basis index offset
-      ii = ii + n_b_l
+      offset = offset + n_b_l
 
       ! deallocate norm
       deallocate(norm)
@@ -628,7 +628,7 @@ contains
 
   end subroutine setup_radial
 
-  ! overlap_analytic
+  ! overlap
   !
   ! For given <basis>, calculate the overlap matrix elements
   ! > B_{i, j} = < phi_{i} | phi_{j} > for i, j = 1, ..., <n_basis>
@@ -637,14 +637,15 @@ contains
   ! Returns an error code, <i_err>, where:
   ! - 0 indicates successful execution;
   ! - 1 indicates invalid arguments.
-  subroutine overlap_analytic (basis, B, i_err)
+  subroutine overlap (basis, B, i_err)
     type(t_basis) , intent(inout) :: basis
     double precision , intent(out) :: B(basis%n_basis, basis%n_basis)
     integer , intent(out) :: i_err
-    integer :: ii
+    integer :: n_b_l, offset
+    integer :: kk, ll
 
 #if (DEBUG >= 1)
-    write (STDERR, *) PREFIX, "subroutine overlap_analytic()"
+    write (STDERR, *) PREFIX, "subroutine overlap()"
 #endif
 
     ! check if arguments are valid
@@ -663,12 +664,202 @@ contains
 
 #if (DEBUG >= 1)
       write (STDERR, *) PREFIX, ERR, "arguments are invalid"
-      write (STDERR, *) PREFIX, "exiting subroutine overlap_analytic()"
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine overlap()"
 #endif
 
       return
     end if
 
-  end subroutine overlap_analytic
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "arguments are valid"
+#endif
+
+    ! initialise <B>
+    B(:, :) = 0.0d0
+
+    ! calculate tri-diagonal overlap matrix elements
+    offset = 0
+
+    do ll = 0, basis%l_max
+
+#if (DEBUG >= 4)
+      write (STDERR, *) PREFIX, "<l> = ", ll
+      write (STDERR, *) PREFIX, "<offset> = ", offset
+#endif
+
+      n_b_l = basis%n_basis_l(ll)
+
+      ! if there are no basis states for this value of <l>, then cycle
+      if (n_b_l == 0) then
+
+#if (DEBUG >= 4)
+        write (STDERR, *) PREFIX, "no basis states for this value of <l>"
+        write (STDERR, *) PREFIX, "cycling"
+#endif
+
+        cycle
+      end if
+
+      ! calculate tri-diagonal overlap matrix elements for current <l>
+      if (n_b_l >= 1) then
+
+#if (DEBUG >= 3)
+        write (STDERR, *) PREFIX, "<i>, B(i, i), B(i+1, i) = B(i, i+1)"
+#endif
+
+        if (n_b_l >= 2) then
+          do kk = 1, n_b_l-1
+            B(offset+kk, offset+kk) = 1.0d0
+
+            B(offset+kk, offset+kk+1) = - 0.5d0 * sqrt(1 - &
+                (dble(ll * (ll + 1)) / dble((kk + ll) * (kk + ll + 1))))
+
+            B(offset+kk+1, offset+kk) = B(offset+kk, offset+kk+1)
+
+#if (DEBUG >= 3)
+            write (STDERR, *) PREFIX, &
+                offset+kk, B(offset+kk, offset+kk), B(offset+kk+1, offset+kk)
+#endif
+
+          end do
+        end if
+
+        ! last term (not covered by loop)
+        B(offset+n_b_l, offset+n_b_l) = 1.0d0
+
+#if (DEBUG >= 3)
+        write (STDERR, *) PREFIX, &
+            offset+n_b_l, B(offset+n_b_l, offset+n_b_l)
+#endif
+
+      end if
+
+      ! increment basis index offset
+      offset = offset + n_b_l
+    end do
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "end subroutine overlap()"
+#endif
+
+  end subroutine overlap
+
+  ! kinetic
+  !
+  ! For given <basis>, calculate the overlap matrix elements
+  ! > K_{i, j} = < phi_{i} | K | phi_{j} > for i, j = 1, ..., <n_basis>
+  ! using analytic properties of the Laguerre basis.
+  !
+  ! Returns an error code, <i_err>, where:
+  ! - 0 indicates successful execution;
+  ! - 1 indicates invalid arguments.
+  subroutine kinetic (basis, K, i_err)
+    type(t_basis) , intent(inout) :: basis
+    double precision , intent(out) :: K(basis%n_basis, basis%n_basis)
+    integer , intent(out) :: i_err
+    double precision :: alpha
+    integer :: n_b_l, offset
+    integer :: kk, ll
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "subroutine kinetic()"
+#endif
+
+    ! check if arguments are valid
+    i_err = 0
+
+    if (.not. is_valid(basis)) then
+      i_err = 1
+    end if
+
+    ! handle invalid arguments
+    if (i_err /= 0) then
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG >= 1)
+      write (STDERR, *) PREFIX, ERR, "arguments are invalid"
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine kinetic()"
+#endif
+
+      return
+    end if
+
+#if (DEBUG >= 2)
+    write (STDERR, *) PREFIX, "arguments are valid"
+#endif
+
+    ! initialise <K>
+    K(:, :) = 0.0d0
+
+    ! calculate tri-diagonal kinetic matrix elements
+    offset = 0
+
+    do ll = 0, basis%l_max
+
+#if (DEBUG >= 4)
+      write (STDERR, *) PREFIX, "<l> = ", ll
+      write (STDERR, *) PREFIX, "<offset> = ", offset
+#endif
+
+      n_b_l = basis%n_basis_l(ll)
+      alpha = basis%alpha_l(ll)
+
+      ! if there are no basis states for this value of <l>, then cycle
+      if (n_b_l == 0) then
+
+#if (DEBUG >= 4)
+        write (STDERR, *) PREFIX, "no basis states for this value of <l>"
+        write (STDERR, *) PREFIX, "cycling"
+#endif
+
+        cycle
+      end if
+
+      ! calculate tri-diagonal kinetic matrix elements for current <l>
+      if (n_b_l >= 1) then
+
+#if (DEBUG >= 3)
+        write (STDERR, *) PREFIX, "<i>, K(i, i), K(i+1, i) = K(i, i+1)"
+#endif
+
+        if (n_b_l >= 2) then
+          do kk = 1, n_b_l-1
+            K(offset+kk, offset+kk) = 0.5d0 * (alpha ** 2)
+
+            K(offset+kk, offset+kk+1) = (alpha ** 2) * 0.25d0 * sqrt(1 - &
+                (dble(ll * (ll + 1)) / dble((kk + ll) * (kk + ll + 1))))
+
+            K(offset+kk+1, offset+kk) = K(offset+kk, offset+kk+1)
+
+#if (DEBUG >= 3)
+            write (STDERR, *) PREFIX, &
+                offset+kk, K(offset+kk, offset+kk), K(offset+kk+1, offset+kk)
+#endif
+
+          end do
+        end if
+
+        ! last term (not covered by loop)
+        K(offset+n_b_l, offset+n_b_l) = 0.5d0 * (alpha ** 2)
+
+#if (DEBUG >= 3)
+        write (STDERR, *) PREFIX, &
+            offset+n_b_l, K(offset+n_b_l, offset+n_b_l)
+#endif
+
+      end if
+
+      ! increment basis index offset
+      offset = offset + n_b_l
+    end do
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "end subroutine kinetic()"
+#endif
+
+  end subroutine kinetic
 
 end module laguerre

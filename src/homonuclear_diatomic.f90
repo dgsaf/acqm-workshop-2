@@ -25,6 +25,8 @@ program homonuclear_diatomic
   type(t_basis) :: basis
 
   ! matrix variables
+  double precision , allocatable :: B(:, :)
+  double precision , allocatable :: K(:, :)
 
   ! local variables
   integer :: i_err
@@ -32,7 +34,7 @@ program homonuclear_diatomic
 
 !> program execution
   ! molecule parameters
-  m = 2
+  m = 0
   parity = 1
   l_max = 5
 
@@ -56,6 +58,15 @@ program homonuclear_diatomic
 
   call setup_radial(basis, n_r, r_grid, i_err)
 
+  ! matrices
+  allocate(B(basis%n_basis, basis%n_basis))
+  allocate(K(basis%n_basis, basis%n_basis))
+
+  call overlap(basis, B, i_err)
+  call display_matrix(basis%n_basis, basis%n_basis, B)
+
+  call kinetic(basis, K, i_err)
+  call display_matrix(basis%n_basis, basis%n_basis, K)
 contains
 
 end program homonuclear_diatomic
