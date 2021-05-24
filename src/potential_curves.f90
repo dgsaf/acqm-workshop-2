@@ -16,8 +16,8 @@ program potential_curves
 #define PREFIX "[debug] "
 #define ERR "[error] "
 #define DISPLAY_BASIS 0
-#define DISPLAY_VECTOR 0
-#define DISPLAY_MATRIX 0
+#define DISPLAY_VECTOR 1
+#define DISPLAY_MATRIX 1
 #define TOL 1.0D-10
 
   use io
@@ -103,12 +103,30 @@ program potential_curves
   allocate(r_grid(n_r))
   allocate(rz_grid(n_rz))
 
+#if (DEBUG_POTENTIAL_CURVES >= 4)
+  write (STDERR, *) PREFIX, "<radial index>, <r_grid>"
+#endif
+
   do ii = 1, n_r
     r_grid(ii) = d_r * (ii - 1)
+
+#if (DEBUG_POTENTIAL_CURVES >= 4)
+    write (STDERR, *) PREFIX, ii, r_grid(ii)
+#endif
+
   end do
+
+#if (DEBUG_POTENTIAL_CURVES >= 4)
+  write (STDERR, *) PREFIX, "<radial index>, <r_grid>"
+#endif
 
   do ii = 1, n_rz
     rz_grid(ii) = d_rz * (ii - 1)
+
+#if (DEBUG_POTENTIAL_CURVES >= 4)
+    write (STDERR, *) PREFIX, ii, rz_grid(ii)
+#endif
+
   end do
 
   ! setup <basis>
@@ -157,6 +175,10 @@ program potential_curves
   allocate(V(basis%n_basis, basis%n_basis))
   allocate(H(basis%n_basis, basis%n_basis))
 
+  ! allocate <eigen_values>, <eigen_vectors>
+  allocate(eigen_values(basis%n_basis))
+  allocate(eigen_vectors(basis%n_basis, basis%n_basis))
+
   ! calculate overlap matrix
   call overlap(basis, B, i_err)
 
@@ -175,6 +197,11 @@ program potential_curves
 
   ! loop over <rz_grid>
   do ii = 1, n_rz
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "<rz> = ", rz_grid(ii)
+#endif
+
     ! calculate potential matrix
     call potential_e_n(basis, nuclei_charge, lambda_max, rz_grid(ii), V, i_err)
 
@@ -183,8 +210,9 @@ program potential_curves
     call display_matrix(basis%n_basis, basis%n_basis, V)
 #endif
 
-    ! calculate electronic hamiltonian
-    H(:, :) = K(:, :) + V(:, :) + (1.0d0 / rz_grid(ii))
+    ! calculate electronic hamiltonian, not including 1/R term; that is,
+    ! > <H_elec> = <H> + (1.0d0 / rz_grid(ii))
+    H(:, :) = K(:, :) + V(:, :)
 
 #if (DISPLAY_MATRIX)
     write (STDERR, *) "<H>"
@@ -193,6 +221,9 @@ program potential_curves
 
     ! solve electronic eigenvalue equation
     call diagonalise(basis, B, H, eigen_values, eigen_vectors, i_err)
+
+    ! shift energies by the 1/R term
+    eigen_values(:) = eigen_values(:) + (dble(nuclei_charge ** 2) / rz_grid(ii))
 
 #if (DISPLAY_VECTOR)
     write (STDERR, *) "<eigen_values>"
@@ -469,7 +500,7 @@ contains
 #endif
 
 #if (DEBUG_POTENTIAL_CURVES >= 1)
-      write (STDERR, *) PREFIX, ERR, "end subroutine read_input()"
+    write (STDERR, *) PREFIX, "end subroutine read_input()"
 #endif
 
   end subroutine read_input
