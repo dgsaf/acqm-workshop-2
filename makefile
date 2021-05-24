@@ -125,7 +125,7 @@ COMMONFLAGS = $(OPTFLAGS)
 .PHONY : homonuclear_diatomic
 
 #
-all : dirs buildinfo homonuclear_diatomic
+all : dirs buildinfo potential_curves
 
 #
 allinfo : configinfo buildinfo makecommands
@@ -197,14 +197,14 @@ obj/laguerre.o : src/laguerre.f90 obj/integrate.o obj/wigner.o
 	$(FORT) $(COMMONFLAGS) $(FFLAGS) -c $^ -o $@ -J mod/
 
 # bin/*
-homonuclear_diatomic : bin/homonuclear_diatomic
+potential_curves : bin/potential_curves
 
-bin/homonuclear_diatomic : src/homonuclear_diatomic.f90 \
+bin/potential_curves : src/potential_curves.f90 \
 	obj/rsg.o obj/intp.o obj/wigner.o obj/io.o obj/integrate.o obj/laguerre.o
 
-	$(FORT) $(COMMONFLAGS) $(FFLAGS) -c src/homonuclear_diatomic.f90 \
-	-o obj/homonuclear_diatomic.o -I mod/
+	$(FORT) $(COMMONFLAGS) $(FFLAGS) -c src/potential_curves.f90 \
+	-o obj/potential_curves.o -I mod/
 
-	$(FORT) $(COMMONFLAGS) $(FFLAGS) -o bin/homonuclear_diatomic \
-	obj/homonuclear_diatomic.o obj/rsg.o obj/wigner.o obj/intp.o \
+	$(FORT) $(COMMONFLAGS) $(FFLAGS) -o bin/potential_curves \
+	obj/potential_curves.o obj/rsg.o obj/wigner.o obj/intp.o \
 	obj/io.o obj/integrate.o obj/laguerre.o

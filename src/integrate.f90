@@ -9,12 +9,13 @@ module integrate
   !   - 2: allocation, scalar assignment, short array assignment, etc;
   !   - 3: longer array assignment;
   !   - 4: internal variable assignment, allocation, inspecting loops, etc;
-  ! - <PREFIX>: prefix every debug statement with this string.
+  ! - <PREFIX>: prefix every debug statement with this string;
   ! - <ERR>: prefix every error debug statement with this string.
 #define STDERR 0
 #define DEBUG_INTEGRATE 0
 #define PREFIX "[debug] "
 #define ERR "[error] "
+#define TOL 1.0D-10
 
   implicit none
 

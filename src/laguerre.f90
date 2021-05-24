@@ -11,8 +11,9 @@ module laguerre
   !   - 2: allocation, scalar assignment, short array assignment, etc;
   !   - 3: longer array assignment;
   !   - 4: internal variable assignment, allocation, inspecting loops, etc;
-  ! - <PREFIX>: prefix every debug statement with this string.
-  ! - <ERR>: prefix every error debug statement with this string.
+  ! - <PREFIX>: prefix every debug statement with this string;
+  ! - <ERR>: prefix every error debug statement with this string;
+  ! - <TOL>: double precision tolerance value.
 #define STDERR 0
 #define DEBUG_LAGUERRE 2
 #define PREFIX "[debug] "
@@ -93,8 +94,8 @@ contains
 
   ! setup_basis
   !
-  ! For given <basis>, <m>, <parity>, <l_max>, <n_basis_l>, <alpha_l>,
-  ! calculates the following:
+  ! For given <basis>, <m>, <parity>, <l_max>, <n_basis_l>, <alpha_l>, copies
+  ! these variables (if valid) and calculates the following:
   ! - <n_basis>;
   ! - <k_list>;
   ! - <l_list>.
@@ -158,7 +159,7 @@ contains
         i_err = 1
 
 #if (DEBUG_LAGUERRE >= 2)
-        write (STDERR, *) PREFIX, ERR, "any(<alpha_l(:)> < 0)"
+        write (STDERR, *) PREFIX, ERR, "any(<alpha_l(:)> < TOL)"
 #endif
 
       end if
@@ -331,7 +332,7 @@ contains
   ! - <basis%n_basis> < 1;
   ! - <basis%l_max> < 0;
   ! - any(<basis%n_basis_l(:)> < 0);
-  ! - any(<basis%alpha_l(:)> < 1.0D-8).
+  ! - any(<basis%alpha_l(:)> < TOL).
   logical function is_valid (basis)
     type(t_basis) , intent(in) :: basis
 
@@ -386,11 +387,11 @@ contains
 
       end if
 
-      if (any(basis%alpha_l(:) < 1.0D-8)) then
+      if (any(basis%alpha_l(:) < TOL)) then
         is_valid = .false.
 
 #if (DEBUG_LAGUERRE >= 2)
-        write (STDERR, *) PREFIX, ERR, "any(<basis%alpha_l(:)> < 1.0D-8)"
+        write (STDERR, *) PREFIX, ERR, "any(<basis%alpha_l(:)> < TOL)"
 #endif
 
       end if
@@ -631,25 +632,23 @@ contains
 
   end subroutine setup_radial
 
-  ! contract_radial
+  ! partial_waves
   !
-  ! For given <basis>, <C>, where <C> is the matrix of expansion coefficients
-  ! for a set of states, in terms of <basis>, calculate the radial functions of
-  ! the expanded states.
+  ! For given <basis>, <C>, where <C> is a coefficient matrix for a set of
+  ! states, in terms of <basis>, calculate the partial waves of the states.
   !
   ! Returns an error code, <i_err>, where:
   ! - 0 indicates successful execution;
   ! - 1 indicates invalid arguments.
-  subroutine contract_radial (basis, C, C_radial, i_err)
+  subroutine partial_waves (basis, C, pw, i_err)
     type(t_basis) , intent(in) :: basis
     double precision , intent(in) :: C(basis%n_basis, basis%n_basis)
-    double precision , intent(out) :: C_radial(basis%n_r, basis%n_basis)
+    double precision , intent(out) :: pw(basis%n_r, basis%l_max, basis%n_basis)
     integer , intent(out) :: i_err
-    double precision :: temp_sum
-    integer :: ii, jj, kk
+    integer :: ii, jj, kk, ll
 
 #if (DEBUG_LAGUERRE >= 1)
-    write (STDERR, *) PREFIX, "subroutine contract_radial()"
+    write (STDERR, *) PREFIX, "subroutine partial_waves()"
 #endif
 
     ! check if arguments are valid
@@ -677,7 +676,7 @@ contains
 
 #if (DEBUG_LAGUERRE >= 1)
       write (STDERR, *) PREFIX, ERR, "arguments are invalid"
-      write (STDERR, *) PREFIX, ERR, "exiting subroutine contract_radial()"
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine partial_waves()"
 #endif
 
       return
@@ -687,6 +686,9 @@ contains
     write (STDERR, *) PREFIX, "arguments are valid"
 #endif
 
+    ! initialise <pw>
+    pw(:, :, :) = 0.0d0
+
     ! calculate radial functions of expanded states
     do ii = 1, basis%n_basis
 
@@ -695,30 +697,29 @@ contains
 #endif
 
 #if (DEBUG_LAGUERRE >= 4)
-      write (STDERR, *) PREFIX, "<radial index>, <C_radial>"
+      write (STDERR, *) PREFIX, "<radial index>, <pw>"
 #endif
 
       do jj = 1, basis%n_r
-        temp_sum = 0.0d0
-
         do kk = 1, basis%n_basis
-          temp_sum = temp_sum + (C(kk, ii) * basis%radial(jj, kk))
+          ll = basis%l_list(kk)
+
+          pw(jj, ll, ii) = pw(jj, ll, ii) &
+              + (C(kk, ii) * basis%radial(jj, kk))
         end do
 
-        C_radial(jj, ii) = temp_sum
-
 #if (DEBUG_LAGUERRE >= 4)
-        write (STDERR, *) PREFIX, jj, C_radial(jj, ii)
+        write (STDERR, *) PREFIX, jj, pw(jj, :, ii)
 #endif
 
       end do
     end do
 
 #if (DEBUG_LAGUERRE >= 1)
-    write (STDERR, *) PREFIX, "end subroutine contract_radial()"
+    write (STDERR, *) PREFIX, "end subroutine partial_waves()"
 #endif
 
-  end subroutine contract_radial
+  end subroutine partial_waves
 
   ! overlap
   !
@@ -1129,7 +1130,7 @@ contains
 
   ! potential_e_n
   !
-  ! For given <basis>, <nuclei_charge>, <rz>, <lambda_max> calculate the
+  ! For given <basis>, <nuclei_charge>, <lambda_max>, <rz> calculate the
   ! electron-nuclei potential matrix elements
   ! > V_{i, j} = < phi_{i} | V | phi_{j} > for i, j = 1, ..., <n_basis>
   ! where the V(r) is the electron-nuclei potential of a one-electron
@@ -1144,11 +1145,11 @@ contains
   ! Returns an error code, <i_err>, where:
   ! - 0 indicates successful execution;
   ! - 1 indicates invalid arguments.
-  subroutine potential_e_n (basis, nuclei_charge, rz, lambda_max, V, i_err)
+  subroutine potential_e_n (basis, nuclei_charge, lambda_max, rz, V, i_err)
     type(t_basis) , intent(in) :: basis
     integer , intent(in) :: nuclei_charge
-    double precision , intent(in) :: rz
     integer , intent(in) :: lambda_max
+    double precision , intent(in) :: rz
     double precision , intent(out) :: V(basis%n_basis, basis%n_basis)
     integer , intent(out) :: i_err
     double precision :: temp_sum, integral, dl_i, dl_j, dlam, dm, Yint
@@ -1187,7 +1188,7 @@ contains
       i_err = 1
 
 #if (DEBUG_LAGUERRE >= 2)
-      write (STDERR, *) PREFIX, ERR, "<rz> < 0"
+      write (STDERR, *) PREFIX, ERR, "<rz> < TOL"
 #endif
 
     end if
