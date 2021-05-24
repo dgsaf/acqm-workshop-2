@@ -295,6 +295,9 @@ program potential_curves
     call display_matrix(basis%n_basis, basis%n_basis, eigen_vectors)
 #endif
 
+    call write_output(basis, n_basis_l_const, alpha_l_const, nuclei_charge, &
+        lambda_max, rz_grid(ii), B, K, V, H, eigen_values, eigen_vectors)
+
   end do
 
 contains
@@ -613,7 +616,7 @@ contains
         "rz-", trim(adjustl(str_rz)), "/"
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "<output_dir> = ", output_dir
+    write (STDERR, *) PREFIX, "<output_dir> = ", trim(adjustl(output_dir))
 #endif
 
     call execute_command_line("mkdir -p "//trim(adjustl(output_dir)))
