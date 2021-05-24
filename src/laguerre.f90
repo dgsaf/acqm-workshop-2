@@ -12,7 +12,7 @@ module laguerre
   ! - <PREFIX>: prefix every debug statement with this string.
   ! - <ERR>: prefix every error debug statement with this string.
 #define STDERR 0
-#define DEBUG 2
+#define DEBUG 4
 #define PREFIX "[debug] "
 #define ERR "[error] "
 
@@ -164,6 +164,10 @@ contains
     ! handle invalid arguments
     if (i_err /= 0) then
 
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
 #if (DEBUG >= 1)
       write (STDERR, *) PREFIX, ERR, "arguments are invalid"
 #endif
@@ -188,7 +192,6 @@ contains
       write (STDERR, *) PREFIX, ERR, "<basis%l_max> = ", basis%l_max
       write (STDERR, *) PREFIX, ERR, "<basis%n_basis> = ", basis%n_basis
       write (STDERR, *) PREFIX, ERR, "<basis%n_r> = ", basis%n_r
-      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
 #endif
 
 #if (DEBUG >= 1)
@@ -315,6 +318,88 @@ contains
 
   end subroutine setup_basis
 
+  ! is_valid
+  !
+  ! For given <basis>, determines if the basis variables are valid. A <basis> is
+  ! invalid if:
+  ! - abs(<basis%parity>) /= 1;
+  ! - <basis%l_max> < abs(<basis%m>);
+  ! - <basis%l_max> < 0;
+  ! - <basis%n_basis> < 1;
+  ! - <basis%l_max> < 0;
+  ! - any(<basis%n_basis_l(:)> < 0);
+  ! - any(<basis%alpha_l(:)> < 1.0D-8).
+  logical function is_valid (basis)
+    type(t_basis) , intent(inout) :: basis
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "function is_valid()"
+#endif
+
+    ! check if <basis> is valid
+    is_valid = .true.
+
+    if (basis%n_basis < 1) then
+      is_valid = .false.
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<basis%n_basis> < 1"
+#endif
+
+    end if
+
+    if (abs(basis%parity) /= 1) then
+      is_valid = .false.
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "abs(<basis%parity>) /= 1"
+#endif
+
+    end if
+
+    if (basis%l_max < abs(basis%m)) then
+      is_valid = .false.
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<basis%l_max> < abs(<basis%m>)"
+#endif
+
+    end if
+
+    if (basis%l_max < 0) then
+      is_valid = .false.
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<basis%l_max> < 0"
+#endif
+
+    else
+      if (any(basis%n_basis_l(:) < 0)) then
+        is_valid = .false.
+
+#if (DEBUG >= 2)
+        write (STDERR, *) PREFIX, ERR, "any(<basis%n_basis_l(:)> < 0)"
+#endif
+
+      end if
+
+      if (any(basis%alpha_l(:) < 1.0D-8)) then
+        is_valid = .false.
+
+#if (DEBUG >= 2)
+        write (STDERR, *) PREFIX, ERR, "any(<basis%alpha_l(:)> < 1.0D-8)"
+#endif
+
+      end if
+    end if
+
+#if (DEBUG >= 1)
+    write (STDERR, *) PREFIX, "end function is_valid()"
+#endif
+
+    return
+  end function is_valid
+
   ! setup_radial
   !
   ! For given <basis>, <n_r>, <r_grid>, calculates the radial functions
@@ -349,39 +434,8 @@ contains
     ! check if arguments are valid
     i_err = 0
 
-    if (basis%n_basis < 1) then
+    if (.not. is_valid(basis)) then
       i_err = 1
-
-#if (DEBUG >= 2)
-      write (STDERR, *) PREFIX, ERR, "<basis%n_basis> < 1"
-#endif
-
-    end if
-
-    if (basis%l_max < 0) then
-      i_err = 1
-
-#if (DEBUG >= 2)
-      write (STDERR, *) PREFIX, ERR, "<basis%l_max> < 0"
-#endif
-
-    else
-      if (any(basis%n_basis_l(:) < 0)) then
-        i_err = 1
-
-#if (DEBUG >= 2)
-        write (STDERR, *) PREFIX, ERR, "any(<basis%n_basis_l(:)> < 0)"
-#endif
-
-      end if
-
-      if (any(basis%alpha_l(:) < 1.0D-8)) then
-        i_err = 1
-
-#if (DEBUG >= 2)
-        write (STDERR, *) PREFIX, ERR, "any(<basis%alpha_l(:)> < 1.0D-8)"
-#endif
-      end if
     end if
 
     if (n_r < 1) then
@@ -396,17 +450,14 @@ contains
     ! handle invalid arguments
     if (i_err /= 0) then
 
-#if (DEBUG >= 1)
-      write (STDERR, *) PREFIX, ERR, "arguments are invalid"
-      write (STDERR, *) PREFIX, ERR, &
-          "<basis> array variables will be left un-allocated"
-#endif
-
 #if (DEBUG >= 2)
       write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
 #endif
 
 #if (DEBUG >= 1)
+      write (STDERR, *) PREFIX, ERR, "arguments are invalid"
+      write (STDERR, *) PREFIX, ERR, &
+          "<basis> array variables will be left un-allocated"
       write (STDERR, *) PREFIX, ERR, "exiting subroutine setup_radial()"
 #endif
 
@@ -599,12 +650,19 @@ contains
     ! check if arguments are valid
     i_err = 0
 
-    if ((basis%l_max < 0) .or. (basis%n_basis < 1)) then
+    if (.not. is_valid(basis)) then
       i_err = 1
+    end if
+
+    ! handle invalid arguments
+    if (i_err /= 0) then
+
+#if (DEBUG >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
 
 #if (DEBUG >= 1)
-      write (STDERR, *) PREFIX, "arguments are invalid"
-      write (STDERR, *) PREFIX, "<i_err> = ", i_err
+      write (STDERR, *) PREFIX, ERR, "arguments are invalid"
       write (STDERR, *) PREFIX, "exiting subroutine overlap_analytic()"
 #endif
 
@@ -612,60 +670,5 @@ contains
     end if
 
   end subroutine overlap_analytic
-
-
-  ! is_valid
-  logical function is_valid (basis)
-    type(t_basis) , intent(inout) :: basis
-
-#if (DEBUG >= 1)
-    write (STDERR, *) PREFIX, "function is_valid()"
-#endif
-
-    ! check if <basis> is valid
-    is_valid = .true.
-
-    if (basis%n_basis < 1) then
-      is_valid = .false.
-
-#if (DEBUG >= 2)
-      write (STDERR, *) PREFIX, ERR, "<basis%n_basis> < 1"
-#endif
-
-    end if
-
-    if (basis%l_max < 0) then
-      is_valid = .false.
-
-#if (DEBUG >= 2)
-      write (STDERR, *) PREFIX, ERR, "<basis%l_max> < 0"
-#endif
-
-    else
-      if (any(basis%n_basis_l(:) < 0)) then
-        is_valid = .false.
-
-#if (DEBUG >= 2)
-        write (STDERR, *) PREFIX, ERR, "any(<basis%n_basis_l(:)> < 0)"
-#endif
-
-      end if
-
-      if (any(basis%alpha_l(:) < 1.0D-8)) then
-        is_valid = .false.
-
-#if (DEBUG >= 2)
-        write (STDERR, *) PREFIX, ERR, "any(<basis%alpha_l(:)> < 1.0D-8)"
-#endif
-
-      end if
-    end if
-
-#if (DEBUG >= 1)
-    write (STDERR, *) PREFIX, "end function is_valid()"
-#endif
-
-    return
-  end function is_valid
 
 end module laguerre
