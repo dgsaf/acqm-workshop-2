@@ -1,6 +1,15 @@
 !>
 module laguerre
 
+  ! debug definitions and macros
+#define STDERR 0
+#define DEBUG 3
+
+#define DEBUG_STR(_level, _str) if (DEBUG >= _level) write (STDERR, *) \
+  "[debug] ", _str
+#define DEBUG_VAR(_level, _arg, _val) \
+  if (DEBUG >= _level) write (STDERR, *) "[debug] ", _arg, " = ", _val
+
   implicit none
 
   ! t_basis
@@ -23,8 +32,8 @@ module laguerre
   ! - <parity>: the parity quantum number, <parity> = (-1)^<l>, a conserved
   !   symmetry of the one-electron homonuclear-diatomic-molecule system;
   ! - <l_max>: maximum angular quantum number, <l>, considered in the basis;
-  ! - <n_basis_l>: number of basis functions per <l>;
-  ! - <alpha_l>: value of <alpha> per <l>.
+  ! - <n_basis_l>: number of basis functions per <l> (from 0 to <l_max>);
+  ! - <alpha_l>: value of <alpha> per <l> (from 0 to <l_max>).
   !
   ! As a result of this construction, we also have:
   ! - <n_basis>: the total number of basis states;
@@ -87,12 +96,14 @@ contains
   subroutine setup_basis (basis, m, parity, l_max, n_basis_l, alpha_l, i_err)
     type(t_basis) , intent(inout) :: basis
     integer , intent(in) :: l_max
-    integer , intent(in) :: n_basis_l(l_max)
-    integer , intent(in) :: alpha_l(l_max)
+    integer , intent(in) :: n_basis_l(0:l_max)
+    double precision , intent(in) :: alpha_l(0:l_max)
     integer , intent(in) :: m
     integer , intent(in) :: parity
     integer , intent(out) :: i_err
     integer :: ii, kk, ll
+
+    DEBUG_STR(1, "subroutine setup_basis()")
 
     ! check if arguments are valid
     i_err = 0
@@ -105,23 +116,33 @@ contains
       return
     end if
 
+    DEBUG_STR(1, "arguments are valid")
+
     ! set <m>, <parity>, <l_max>
     basis%m = m
     basis%parity = parity
     basis%l_max = l_max
 
+    DEBUG_VAR(1, "<basis%m>", basis%m)
+    DEBUG_VAR(1, "<basis%parity>", basis%parity)
+    DEBUG_VAR(1, "<basis%l_max>", basis%l_max)
+
     ! allocate <n_basis_l>, <alpha_l>
-    allocate(basis%n_basis_l(l_max))
-    allocate(basis%alpha_l(l_max))
+    allocate(basis%n_basis_l(0:l_max))
+    allocate(basis%alpha_l(0:l_max))
+
+    DEBUG_STR(1, "allocated <basis%n_basis_l>")
+    DEBUG_STR(1, "allocated <basis%n_alpha_l>")
 
     ! set <alpha_l>
     basis%alpha_l(:) = alpha_l(:)
 
-    ! calculate <n_basis>, and ignore <n_basis_l> for <ll> < |<m>|
+    ! calculate <n_basis>, ignoring <n_basis_l> for <l> < |<m>|, and/or for
+    ! (-1)**<l> /= <parity>
     basis%n_basis = 0
 
     do ll = 0, l_max
-      if (ll < abs(m)) then
+      if ((ll < abs(m)) .or. ((-1)**ll /= parity)) then
         basis%n_basis_l(ll) = 0
       else
         basis%n_basis_l(ll) = n_basis_l(ll)
