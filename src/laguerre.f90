@@ -333,7 +333,7 @@ contains
   ! - any(<basis%n_basis_l(:)> < 0);
   ! - any(<basis%alpha_l(:)> < 1.0D-8).
   logical function is_valid (basis)
-    type(t_basis) , intent(inout) :: basis
+    type(t_basis) , intent(in) :: basis
 
 #if (DEBUG_LAGUERRE >= 1)
     write (STDERR, *) PREFIX, "function is_valid()"
@@ -631,6 +631,95 @@ contains
 
   end subroutine setup_radial
 
+  ! contract_radial
+  !
+  ! For given <basis>, <C>, where <C> is the matrix of expansion coefficients
+  ! for a set of states, in terms of <basis>, calculate the radial functions of
+  ! the expanded states.
+  !
+  ! Returns an error code, <i_err>, where:
+  ! - 0 indicates successful execution;
+  ! - 1 indicates invalid arguments.
+  subroutine contract_radial (basis, C, C_radial, i_err)
+    type(t_basis) , intent(in) :: basis
+    double precision , intent(in) :: C(basis%n_basis, basis%n_basis)
+    double precision , intent(out) :: C_radial(basis%n_r, basis%n_basis)
+    integer , intent(out) :: i_err
+    double precision :: temp_sum
+    integer :: ii, jj, kk
+
+#if (DEBUG_LAGUERRE >= 1)
+    write (STDERR, *) PREFIX, "subroutine contract_radial()"
+#endif
+
+    ! check if arguments are valid
+    i_err = 0
+
+    if (.not. is_valid(basis)) then
+      i_err = 1
+    end if
+
+    if (basis%n_r < 1) then
+      i_err = 1
+
+#if (DEBUG_LAGUERRE >= 2)
+      write (STDERR, *) PREFIX, ERR, "<basis%n_r> < 1"
+#endif
+
+    end if
+
+    ! handle invalid arguments
+    if (i_err /= 0) then
+
+#if (DEBUG_LAGUERRE >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG_LAGUERRE >= 1)
+      write (STDERR, *) PREFIX, ERR, "arguments are invalid"
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine contract_radial()"
+#endif
+
+      return
+    end if
+
+#if (DEBUG_LAGUERRE >= 2)
+    write (STDERR, *) PREFIX, "arguments are valid"
+#endif
+
+    ! calculate radial functions of expanded states
+    do ii = 1, basis%n_basis
+
+#if (DEBUG_LAGUERRE >= 4)
+      write (STDERR, *) PREFIX, "<i> = " ii
+#endif
+
+#if (DEBUG_LAGUERRE >= 4)
+      write (STDERR, *) PREFIX, "<radial index>, <C_radial>"
+#endif
+
+      do jj = 1, basis%n_r
+        temp_sum = 0.0d0
+
+        do kk = 1, basis%n_basis
+          temp_sum = temp_sum + (C(kk, ii) * basis%radial(jj, kk))
+        end do
+
+        C_radial(jj, ii) = temp_sum
+
+#if (DEBUG_LAGUERRE >= 4)
+        write (STDERR, *) PREFIX, jj, C_radial(jj, ii)
+#endif
+
+      end do
+    end do
+
+#if (DEBUG_LAGUERRE >= 1)
+    write (STDERR, *) PREFIX, "end subroutine contract_radial()"
+#endif
+
+  end subroutine contract_radial
+
   ! overlap
   !
   ! For given <basis>, calculate the overlap matrix elements
@@ -641,7 +730,7 @@ contains
   ! - 0 indicates successful execution;
   ! - 1 indicates invalid arguments.
   subroutine overlap (basis, B, i_err)
-    type(t_basis) , intent(inout) :: basis
+    type(t_basis) , intent(in) :: basis
     double precision , intent(out) :: B(basis%n_basis, basis%n_basis)
     integer , intent(out) :: i_err
     integer :: n_b_l, offset
@@ -757,7 +846,7 @@ contains
   ! - 0 indicates successful execution;
   ! - 1 indicates invalid arguments.
   subroutine overlap_numeric (basis, B, i_err)
-    type(t_basis) , intent(inout) :: basis
+    type(t_basis) , intent(in) :: basis
     double precision , intent(out) :: B(basis%n_basis, basis%n_basis)
     integer , intent(out) :: i_err
     integer :: ii, jj
@@ -830,7 +919,7 @@ contains
   ! - 0 indicates successful execution;
   ! - 1 indicates invalid arguments.
   subroutine kinetic (basis, K, i_err)
-    type(t_basis) , intent(inout) :: basis
+    type(t_basis) , intent(in) :: basis
     double precision , intent(out) :: K(basis%n_basis, basis%n_basis)
     integer , intent(out) :: i_err
     double precision :: alpha
@@ -948,7 +1037,7 @@ contains
   ! - 0 indicates successful execution;
   ! - 1 indicates invalid arguments.
   subroutine potential_spherical (basis, v_grid, V, i_err)
-    type(t_basis) , intent(inout) :: basis
+    type(t_basis) , intent(in) :: basis
     double precision , intent(in) :: v_grid(basis%n_r)
     double precision , intent(out) :: V(basis%n_basis, basis%n_basis)
     integer , intent(out) :: i_err
@@ -1040,29 +1129,29 @@ contains
 
   ! potential_e_n
   !
-  ! For given <basis>, <z>, <rz>, <lambda_max> calculate the electron-nuclei
-  ! potential matrix elements
+  ! For given <basis>, <nuclei_charge>, <rz>, <lambda_max> calculate the
+  ! electron-nuclei potential matrix elements
   ! > V_{i, j} = < phi_{i} | V | phi_{j} > for i, j = 1, ..., <n_basis>
   ! where the V(r) is the electron-nuclei potential of a one-electron
   ! homonuclear-diatomic-molecule system, given by
   ! > V(r) = - z * ((1 / |r + R/2|) + (1 / |r - R/2|))
-  ! where <z> is the atomic charge of the nuclei, r is the electronic position
-  ! vector and R is the nuclei position vector, and where <rz> is the axial
-  ! distance between the nuclear centres.
+  ! where z=<nuclei_charge> is the atomic charge of the nuclei, r is the
+  ! electronic position vector and R is the nuclei position vector, and where
+  ! <rz> is the axial distance between the nuclear centres.
   ! The matrix elements are calculated numerically, by expanding the potential
   ! in terms of spherical harmonics, up to <lambda_max>
   !
   ! Returns an error code, <i_err>, where:
   ! - 0 indicates successful execution;
   ! - 1 indicates invalid arguments.
-  subroutine potential_e_n (basis, z, rz, lambda_max, V, i_err)
-    type(t_basis) , intent(inout) :: basis
-    integer , intent(in) :: z
+  subroutine potential_e_n (basis, nuclei_charge, rz, lambda_max, V, i_err)
+    type(t_basis) , intent(in) :: basis
+    integer , intent(in) :: nuclei_charge
     double precision , intent(in) :: rz
     integer , intent(in) :: lambda_max
     double precision , intent(out) :: V(basis%n_basis, basis%n_basis)
     integer , intent(out) :: i_err
-    double precision :: temp, integral, dl_i, dl_j, dlam, dm, Yint
+    double precision :: temp_sum, integral, dl_i, dl_j, dlam, dm, Yint
     integer :: ii, jj, lambda
 
 #if (DEBUG_LAGUERRE >= 1)
@@ -1085,11 +1174,11 @@ contains
 
     end if
 
-    if (z < 1) then
+    if (nuclei_charge < 1) then
       i_err = 1
 
 #if (DEBUG_LAGUERRE >= 2)
-      write (STDERR, *) PREFIX, ERR, "<z> < 1"
+      write (STDERR, *) PREFIX, ERR, "<nuclei_charge> < 1"
 #endif
 
     end if
@@ -1147,8 +1236,8 @@ contains
       dl_j = dble(basis%l_list(jj))
 
       do ii = 1, basis%n_basis
-        ! initialise temp sum
-        temp = 0.0d0
+        ! initialise <temp_sum>
+        temp_sum = 0.0d0
 
         ! <l_i> as double, used in call to subroutine yint()
         dl_i = dble(basis%l_list(ii))
@@ -1163,10 +1252,11 @@ contains
               * (min(basis%r_grid(:), rz/2.0d0) ** lambda) &
               / (max(basis%r_grid(:), rz/2.0d0) ** (lambda+1)))
 
-          temp = temp + (integral * Yint(dl_i, dm, dlam, dble(0), dl_j, dm))
+          temp_sum = temp_sum + &
+              (integral * Yint(dl_i, dm, dlam, dble(0), dl_j, dm))
         end do
 
-        V(ii, jj) = - 2.0d0 * temp * z
+        V(ii, jj) = - 2.0d0 * temp_sum * nuclei_charge
 
 #if (DEBUG_LAGUERRE >= 3)
         write (STDERR, *) PREFIX, ii, jj, V(ii, jj)
