@@ -801,9 +801,7 @@ contains
 #endif
 
     do jj = 1, basis%n_basis
-
       do ii = 1, basis%n_basis
-
         if (basis%l_list(ii) == basis%l_list(jj)) then
           B(ii, jj) = integrate_trapezoid(basis%n_r, basis%r_grid, &
               basis%radial(:, ii) * basis%radial(:, jj))
@@ -939,6 +937,106 @@ contains
 #endif
 
   end subroutine kinetic
+
+  ! potential_spherical
+  !
+  ! For given <basis>, <v_grid>, calculate the potential matrix elements
+  ! > V_{i, j} = < phi_{i} | V | phi_{j} > for i, j = 1, ..., <n_basis>
+  ! where V(r) is a spherically symmetric radial-potential.
+  !
+  ! Returns an error code, <i_err>, where:
+  ! - 0 indicates successful execution;
+  ! - 1 indicates invalid arguments.
+  subroutine potential_spherical (basis, v_grid, V, i_err)
+    type(t_basis) , intent(inout) :: basis
+    double precision , intent(in) :: v_grid(basis%n_r)
+    double precision , intent(out) :: V(basis%n_basis, basis%n_basis)
+    integer , intent(out) :: i_err
+    integer :: r_i, n_r
+    integer :: ii, jj
+
+#if (DEBUG_LAGUERRE >= 1)
+    write (STDERR, *) PREFIX, "subroutine potential_spherical()"
+#endif
+
+    ! check if arguments are valid
+    i_err = 0
+
+    if (.not. is_valid(basis)) then
+      i_err = 1
+    end if
+
+    if (basis%n_r < 1) then
+      i_err = 1
+
+#if (DEBUG_LAGUERRE >= 2)
+      write (STDERR, *) PREFIX, ERR, "<basis%n_r> < 1"
+#endif
+
+    end if
+
+    ! handle invalid arguments
+    if (i_err /= 0) then
+
+#if (DEBUG_LAGUERRE >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+#if (DEBUG_LAGUERRE >= 1)
+      write (STDERR, *) PREFIX, ERR, "arguments are invalid"
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine potential_spherical()"
+#endif
+
+      return
+    end if
+
+#if (DEBUG_LAGUERRE >= 2)
+    write (STDERR, *) PREFIX, "arguments are valid"
+#endif
+
+    ! initialise <B>
+    V(:, :) = 0.0d0
+
+    ! handle <v_grid> for potentials which tend to infinity at the origin
+    ! truncate grid slices from (1:n_r) to (r_i:n_r), where <r_i> is the first
+    ! <r_grid> value sufficiently far from the origin
+    r_i = 1
+    do while (basis%r_grid(r_i) < TOL)
+      r_i = r_i + 1
+    end do
+
+#if (DEBUG_LAGUERRE >= 4)
+    write (STDERR, *) PREFIX, "<r_i> = ", r_i
+#endif
+
+    ! in-line <basis%n_r>
+    n_r = basis%n_r
+
+    ! calculate overlap matrix elements
+#if (DEBUG_LAGUERRE >= 3)
+    write (STDERR, *) PREFIX, "<i>, <j>, V(i, j)"
+#endif
+
+    do jj = 1, basis%n_basis
+      do ii = 1, basis%n_basis
+        if (basis%l_list(ii) == basis%l_list(jj)) then
+          V(ii, jj) = integrate_trapezoid(n_r-r_i+1, basis%r_grid(r_i:n_r), &
+              basis%radial(r_i:n_r, ii) * basis%radial(r_i:n_r, jj) &
+              * v_grid(r_i:n_r))
+        end if
+
+#if (DEBUG_LAGUERRE >= 3)
+        write (STDERR, *) PREFIX, ii, jj, V(ii, jj)
+#endif
+
+      end do
+    end do
+
+#if (DEBUG_LAGUERRE >= 1)
+    write (STDERR, *) PREFIX, "end subroutine potential_spherical()"
+#endif
+
+  end subroutine potential_spherical
 
   ! potential_e_n
   !
