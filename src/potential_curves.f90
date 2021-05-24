@@ -565,4 +565,112 @@ contains
 
   end subroutine read_input
 
+  ! write_output
+  subroutine write_output (basis, n_basis_l_const, alpha_l_const, &
+      nuclei_charge, lambda_max, rz, &
+      B, K, V, H, eigen_values, eigen_vectors)
+    type(t_basis) , intent(in) :: basis
+    integer , intent(in) :: n_basis_l_const, nuclei_charge, lambda_max
+    double precision , intent(in) :: alpha_l_const, rz
+    double precision , intent(in) :: B(basis%n_basis, basis%n_basis)
+    double precision , intent(in) :: K(basis%n_basis, basis%n_basis)
+    double precision , intent(in) :: V(basis%n_basis, basis%n_basis)
+    double precision , intent(in) :: H(basis%n_basis, basis%n_basis)
+    double precision , intent(in) :: eigen_values(basis%n_basis)
+    double precision , intent(in) :: eigen_vectors(basis%n_basis, basis%n_basis)
+    character(len=2000) :: output_dir
+    character(len=100) :: str_m, str_parity, str_l_max, str_n_basis_l_const, &
+        str_alpha_l_const, str_nuclei_charge, str_lambda_max, &
+        str_d_r, str_r_max, str_rz
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, "subroutine write_output()"
+#endif
+
+    ! construct output directory for given parameters
+    write (str_m, *) basis%m
+    write (str_parity, *) basis%parity
+    write (str_l_max, *) basis%l_max
+    write (str_n_basis_l_const, *) n_basis_l_const
+    write (str_alpha_l_const, "(f10.4)") alpha_l_const
+    write (str_nuclei_charge, *) nuclei_charge
+    write (str_lambda_max, *) lambda_max
+    write (str_d_r, "(f10.4)") basis%r_grid(2) - basis%r_grid(1)
+    write (str_r_max, "(f10.4)") basis%r_grid(basis%n_r)
+    write (str_rz, "(f10.4)") rz
+
+    write (output_dir, *) &
+        "output/", &
+        "m-", trim(adjustl(str_m)), ".", &
+        "parity-", trim(adjustl(str_parity)), ".", &
+        "l_max-", trim(adjustl(str_l_max)), ".", &
+        "n_basis_l_const-", trim(adjustl(str_n_basis_l_const)), ".", &
+        "alpha_l_const-", trim(adjustl(str_alpha_l_const)), ".", &
+        "nuclei_charge-", trim(adjustl(str_nuclei_charge)), ".", &
+        "lambda_max-", trim(adjustl(str_lambda_max)), ".", &
+        "d_r-", trim(adjustl(str_d_r)), ".", &
+        "r_max-", trim(adjustl(str_r_max)), ".", &
+        "rz-", trim(adjustl(str_rz)), "/"
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "<output_dir> = ", output_dir
+#endif
+
+    call execute_command_line("mkdir -p "//trim(adjustl(output_dir)))
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "made <output_dir>"
+#endif
+
+    ! write <B>, <K>, <V>, <H> to file
+    call write_matrix(basis%n_basis, basis%n_basis, B, &
+        trim(adjustl(output_dir))//"B.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <B> to file"
+#endif
+
+    call write_matrix(basis%n_basis, basis%n_basis, K, &
+        trim(adjustl(output_dir))//"K.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <K> to file"
+#endif
+
+    call write_matrix(basis%n_basis, basis%n_basis, V, &
+        trim(adjustl(output_dir))//"V.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <V> to file"
+#endif
+
+    call write_matrix(basis%n_basis, basis%n_basis, H, &
+        trim(adjustl(output_dir))//"H.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <H> to file"
+#endif
+
+    ! write <eigen_values>, <eigen_vectors> to file
+    call write_vector(basis%n_basis, eigen_values, &
+        trim(adjustl(output_dir))//"eigen_values.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <eigen_values> to file"
+#endif
+
+    call write_matrix(basis%n_basis, basis%n_basis, eigen_vectors, &
+        trim(adjustl(output_dir))//"eigen_vectors.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <eigen_vectors> to file"
+#endif
+
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, "end subroutine write_output()"
+#endif
+
+  end subroutine write_output
+
 end program potential_curves
