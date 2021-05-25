@@ -1,4 +1,4 @@
-# One-Electron Homonuclear-Diatomic-Molecule System
+# H2+ Molecular Structure
 
 ## Contents
   - `report/`
