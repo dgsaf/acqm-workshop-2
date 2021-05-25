@@ -10,7 +10,7 @@ d_rz="0.25"
 rz_max="5.0"
 
 # parameter sets
-m_set="-2 -1 0 1 2"
+m_set="0"
 parity_set="-1 1"
 l_max_set="0 1 2 3"
 n_basis_l_const_set="1 2 4 8 16 32 64"

@@ -101,7 +101,7 @@ program potential_curves
 
   ! set <n_r>, <n_rz>
   n_r = ceiling(r_max / d_r) + 1
-  n_rz = ceiling(rz_max / d_rz) + 1
+  n_rz = ceiling(rz_max / d_rz)
 
   ! allocate and set <r_grid>, <rz_grid>
   allocate(r_grid(n_r))
@@ -125,7 +125,7 @@ program potential_curves
 #endif
 
   do ii = 1, n_rz
-    rz_grid(ii) = d_rz * (ii - 1)
+    rz_grid(ii) = d_rz * ii
 
 #if (DEBUG_POTENTIAL_CURVES >= 4)
     write (STDERR, *) PREFIX, ii, rz_grid(ii)
