@@ -1,19 +1,19 @@
 #!/bin/bash
 
 # constant parameters
-alpha_l_const="1.0"
+alpha_l_const="1.0000"
 nuclei_charge="1"
 lambda_max="10"
-d_r="0.1"
-r_max="75.0"
-d_rz="0.5"
-rz_max="6.0"
+d_r="0.1000"
+r_max="75.0000"
+d_rz="0.5000"
+rz_max="10.0000"
 
 # parameter sets
 m_set="0"
-parity_set="-1 1"
+parity_set="-1 +1"
 l_max_set="0 1 2 3 4"
-n_basis_l_const_set="1 2 4 8 16 32 64 128"
+n_basis_l_const_set="1 2 4 8 16 32"
 
 # compile
 make potential_curves
@@ -37,26 +37,27 @@ echo "> "
 
 echo "execution:"
 initial=$(date +%s)
-for m in ${m_set} ; do
+job=1
+for n_basis_l_const in ${n_basis_l_const_set} ; do
+  for l_max in ${l_max_set} ; do
     for parity in ${parity_set} ; do
-        for l_max in ${l_max_set} ; do
-            for n_basis_l_const in ${n_basis_l_const_set} ; do
-                start=$(date +%s)
+      for m in ${m_set} ; do
+        start=$(date +%s)
+        printf "%4i @ [%is], " ${job} $((start - initial))
 
-                printf "[%i s] " $((start - initial))
+        printf "params (%3i, %1i, %2i, %1i), " \
+               ${n_basis_l_const} ${l_max} ${parity} ${m}
 
-                printf "(%i, %i, %i, %3i) " \
-                       ${m} ${parity} ${l_max} ${n_basis_l_const}
+        bin/potential_curves ${m} ${parity} ${l_max} \
+                             ${n_basis_l_const} ${alpha_l_const} \
+                             ${nuclei_charge} ${lambda_max} \
+                             ${d_r} ${r_max} ${d_rz} ${rz_max}
+        end=$(date +%s)
+        runtime=$((end - start))
+        printf "runtime [%is]\n" ${runtime}
 
-                bin/potential_curves ${m} ${parity} ${l_max} \
-                                     ${n_basis_l_const} ${alpha_l_const} \
-                                     ${nuclei_charge} ${lambda_max} \
-                                     ${d_r} ${r_max} ${d_rz} ${rz_max}
-                end=$(date +%s)
-                runtime=$((end - start))
-                printf " [%i s]\n" ${runtime}
-
-            done
-        done
+        ((job=job+1))
+      done
     done
+  done
 done
