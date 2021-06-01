@@ -33,11 +33,15 @@ echo "> m_set: ${m_set}"
 echo "> parity_set: ${parity_set}"
 echo "> l_max_set: ${l_max_set}"
 echo "> n_basis_l_const_set: ${n_basis_l_const_set}"
+echo "> "
 
+echo "> m, parity, l_max, n_basis_l_const"
 for m in ${m_set} ; do
     for parity in ${parity_set} ; do
         for l_max in ${l_max_set} ; do
             for n_basis_l_const in ${n_basis_l_const_set} ; do
+                echo "${m}, ${parity}, ${l_max}, ${n_basis_l_const}"
+
                 bin/potential_curves ${m} ${parity} ${l_max} \
                                      ${n_basis_l_const} ${alpha_l_const} \
                                      ${nuclei_charge} ${lambda_max} \

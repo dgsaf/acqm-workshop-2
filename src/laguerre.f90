@@ -15,7 +15,7 @@ module laguerre
   ! - <ERR>: prefix every error debug statement with this string;
   ! - <TOL>: double precision tolerance value.
 #define STDERR 0
-#define DEBUG_LAGUERRE 2
+#define DEBUG_LAGUERRE 0
 #define PREFIX "[debug] "
 #define ERR "[error] "
 #define TOL 1.0D-10

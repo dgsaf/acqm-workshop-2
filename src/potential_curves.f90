@@ -16,13 +16,13 @@ program potential_curves
   ! - <DISPLAY_VECTOR>: flag if vectors should be displayed;
   ! - <DISPLAY_MATRIX>: flag if matrices should be displayed.
 #define STDERR 0
-#define DEBUG_POTENTIAL_CURVES 2
+#define DEBUG_POTENTIAL_CURVES 0
 #define PREFIX "[debug] "
 #define ERR "[error] "
 #define TOL 1.0D-10
 #define DISPLAY_BASIS 0
-#define DISPLAY_VECTOR 1
-#define DISPLAY_MATRIX 1
+#define DISPLAY_VECTOR 0
+#define DISPLAY_MATRIX 0
 #define DP_FORMAT "(f10.4)"
 
   use io
