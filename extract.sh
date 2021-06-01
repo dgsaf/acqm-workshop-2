@@ -55,17 +55,17 @@ for n_basis_l_const in ${n_basis_l_const_set} ; do
 
               energyfile="${jobdir}rz-${rz}/eigen_values.txt"
 
-              energy=$(awk -F, 'FNR==1 {print $1 ;}' ${energyfile})
-              printf "%i @ %f, %f \n" ${job} ${rz} ${energy}
+              energy=$(awk -vORS=, '{ print $1 }' ${energyfile} | sed 's/,$//')
+              printf "%i @ %s, %s \n" ${job} ${rz} ${energy}
 
-              printf "%f, %f\n" ${rz} ${energy} >> ${extractfile}
+              printf "%s,%s\n" ${rz} ${energy} >> ${extractfile}
             else
               printf "%i @ %s is not an axial-distance sub-directory \n" \
                      ${job} ${subdir}
             fi
           done
 
-          # if extract file exists, sort it
+          # if extract file exists, sort it on axial distance
           if [ -f ${extractfile} ] ; then
             printf "%i @ sorting extract file\n" ${job}
 
