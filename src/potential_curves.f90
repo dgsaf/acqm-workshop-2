@@ -747,7 +747,7 @@ contains
         "d_r-", trim(adjustl(str_d_r)), ".", &
         "r_max-", trim(adjustl(str_r_max)), "/"
 
-#if (DEBUG_POTENTIAL_CURVES >= 2)
+#if (DEBUG_POTENTIAL_CURVES >= 3)
     write (STDERR, *) PREFIX, "<dir> = ", trim(adjustl(dir))
 #endif
 
@@ -780,7 +780,7 @@ contains
     write (sub_dir, *) &
         trim(adjustl(dir)), "rz-", trim(adjustl(str_rz)), "/"
 
-#if (DEBUG_POTENTIAL_CURVES >= 2)
+#if (DEBUG_POTENTIAL_CURVES >= 3)
     write (STDERR, *) PREFIX, "<dir> = ", trim(adjustl(sub_dir))
 #endif
 
