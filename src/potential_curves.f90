@@ -16,7 +16,7 @@ program potential_curves
   ! - <DISPLAY_VECTOR>: flag if vectors should be displayed;
   ! - <DISPLAY_MATRIX>: flag if matrices should be displayed.
 #define STDERR 0
-#define DEBUG_POTENTIAL_CURVES 2
+#define DEBUG_POTENTIAL_CURVES 1
 #define PREFIX "[debug] "
 #define ERR "[error] "
 #define TOL 1.0D-10
@@ -63,6 +63,8 @@ program potential_curves
   double precision , allocatable :: eigen_values(:), eigen_vectors(:, :)
 
   ! local variables
+  character(len=2000) :: output_dir
+  logical :: output_exists
   integer :: i_err
   integer :: ii
 
@@ -234,6 +236,22 @@ program potential_curves
     write (STDERR, *) PREFIX, "<rz> = ", rz_grid(ii)
 #endif
 
+    ! check if data already exists for this calculation
+    output_dir = parameter_directory(basis, n_basis_l_const, alpha_l_const, &
+        nuclei_charge, lambda_max, rz_grid(ii))
+
+    inquire(FILE=trim(adjustl(output_dir))//"complete.txt", EXIST=output_exists)
+
+    if (output_exists) then
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+      write (STDERR, *) PREFIX, &
+          "<output_dir> already exists for these parameters at this <rz>"
+      write (STDERR, *) PREFIX, "cycling"
+#endif
+
+      cycle
+    end if
+
     ! calculate potential matrix
     call potential_e_n(basis, nuclei_charge, lambda_max, rz_grid(ii), V, i_err)
 
@@ -295,8 +313,8 @@ program potential_curves
     call display_matrix(basis%n_basis, basis%n_basis, eigen_vectors)
 #endif
 
-    call write_output(basis, n_basis_l_const, alpha_l_const, nuclei_charge, &
-        lambda_max, rz_grid(ii), B, K, V, H, eigen_values, eigen_vectors)
+    call write_output(basis%n_basis, B, K, V, H, eigen_values, eigen_vectors, &
+        output_dir)
 
   end do
 
@@ -569,25 +587,106 @@ contains
   end subroutine read_input
 
   ! write_output
-  subroutine write_output (basis, n_basis_l_const, alpha_l_const, &
-      nuclei_charge, lambda_max, rz, &
-      B, K, V, H, eigen_values, eigen_vectors)
+  subroutine write_output (n_basis, B, K, V, H, eigen_values, eigen_vectors, &
+      output_dir)
+    integer , intent(in) :: n_basis
+    double precision , intent(in) :: B(n_basis, n_basis)
+    double precision , intent(in) :: K(n_basis, n_basis)
+    double precision , intent(in) :: V(n_basis, n_basis)
+    double precision , intent(in) :: H(n_basis, n_basis)
+    double precision , intent(in) :: eigen_values(n_basis)
+    double precision , intent(in) :: eigen_vectors(n_basis, n_basis)
+    character(len=*) , intent(in) :: output_dir
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, "subroutine write_output()"
+#endif
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "<output_dir> = ", trim(adjustl(output_dir))
+#endif
+
+    call execute_command_line("mkdir -p "//trim(adjustl(output_dir)))
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "made <output_dir>"
+#endif
+
+    ! write <B>, <K>, <V>, <H> to file
+    call write_matrix(n_basis, n_basis, B, trim(adjustl(output_dir))//"B.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <B> to file"
+#endif
+
+    call write_matrix(n_basis, n_basis, K, trim(adjustl(output_dir))//"K.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <K> to file"
+#endif
+
+    call write_matrix(n_basis, n_basis, V, trim(adjustl(output_dir))//"V.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <V> to file"
+#endif
+
+    call write_matrix(n_basis, n_basis, H, trim(adjustl(output_dir))//"H.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <H> to file"
+#endif
+
+    ! write <eigen_values>, <eigen_vectors> to file
+    call write_vector(n_basis, eigen_values, &
+        trim(adjustl(output_dir))//"eigen_values.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <eigen_values> to file"
+#endif
+
+    call write_matrix(n_basis, n_basis, eigen_vectors, &
+        trim(adjustl(output_dir))//"eigen_vectors.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "written <eigen_vectors> to file"
+#endif
+
+    ! touch complete file to register that the calculations for this set of
+    ! parameters has been completely written to file
+    call execute_command_line( &
+        "touch "//trim(adjustl(output_dir))//"complete.txt")
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "touched <complete.txt>"
+#endif
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, "end subroutine write_output()"
+#endif
+
+  end subroutine write_output
+
+  ! parameter_directory
+  !
+  ! For given <basis>, <n_basis_l_const>, <alpha_l_const>, <nuclei_charge>,
+  ! <lambda_max>, <rz>, construct the name of the directory that output for this
+  ! calculation will be written to.
+  !
+  ! Also used to check if the calculation has already been performed before. If
+  ! it has been, this calculation can be skipped since it is a pure calculation.
+  function parameter_directory (basis, n_basis_l_const, alpha_l_const, &
+      nuclei_charge, lambda_max, rz) result (output_dir)
     type(t_basis) , intent(in) :: basis
     integer , intent(in) :: n_basis_l_const, nuclei_charge, lambda_max
     double precision , intent(in) :: alpha_l_const, rz
-    double precision , intent(in) :: B(basis%n_basis, basis%n_basis)
-    double precision , intent(in) :: K(basis%n_basis, basis%n_basis)
-    double precision , intent(in) :: V(basis%n_basis, basis%n_basis)
-    double precision , intent(in) :: H(basis%n_basis, basis%n_basis)
-    double precision , intent(in) :: eigen_values(basis%n_basis)
-    double precision , intent(in) :: eigen_vectors(basis%n_basis, basis%n_basis)
     character(len=2000) :: output_dir
     character(len=100) :: str_m, str_parity, str_l_max, str_n_basis_l_const, &
         str_alpha_l_const, str_nuclei_charge, str_lambda_max, &
         str_d_r, str_r_max, str_rz
 
 #if (DEBUG_POTENTIAL_CURVES >= 1)
-    write (STDERR, *) PREFIX, "subroutine write_output()"
+    write (STDERR, *) PREFIX, "function parameter_directory()"
 #endif
 
     ! construct output directory for given parameters
@@ -619,61 +718,14 @@ contains
     write (STDERR, *) PREFIX, "<output_dir> = ", trim(adjustl(output_dir))
 #endif
 
-    call execute_command_line("mkdir -p "//trim(adjustl(output_dir)))
-
 #if (DEBUG_POTENTIAL_CURVES >= 2)
     write (STDERR, *) PREFIX, "made <output_dir>"
 #endif
 
-    ! write <B>, <K>, <V>, <H> to file
-    call write_matrix(basis%n_basis, basis%n_basis, B, &
-        trim(adjustl(output_dir))//"B.txt")
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <B> to file"
-#endif
-
-    call write_matrix(basis%n_basis, basis%n_basis, K, &
-        trim(adjustl(output_dir))//"K.txt")
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <K> to file"
-#endif
-
-    call write_matrix(basis%n_basis, basis%n_basis, V, &
-        trim(adjustl(output_dir))//"V.txt")
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <V> to file"
-#endif
-
-    call write_matrix(basis%n_basis, basis%n_basis, H, &
-        trim(adjustl(output_dir))//"H.txt")
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <H> to file"
-#endif
-
-    ! write <eigen_values>, <eigen_vectors> to file
-    call write_vector(basis%n_basis, eigen_values, &
-        trim(adjustl(output_dir))//"eigen_values.txt")
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <eigen_values> to file"
-#endif
-
-    call write_matrix(basis%n_basis, basis%n_basis, eigen_vectors, &
-        trim(adjustl(output_dir))//"eigen_vectors.txt")
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <eigen_vectors> to file"
-#endif
-
-
 #if (DEBUG_POTENTIAL_CURVES >= 1)
-    write (STDERR, *) PREFIX, "end subroutine write_output()"
+    write (STDERR, *) PREFIX, "end function parameter_directory()"
 #endif
 
-  end subroutine write_output
+  end function parameter_directory
 
 end program potential_curves

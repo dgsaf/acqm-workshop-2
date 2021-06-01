@@ -12,8 +12,8 @@ rz_max="5.0"
 # parameter sets
 m_set="0"
 parity_set="-1 1"
-l_max_set="0 1 2 3"
-n_basis_l_const_set="1 2 4 8 16 32 64"
+l_max_set="0 1 2 3 4"
+n_basis_l_const_set="1 2 4 8 16 32 64 128"
 
 # compile
 make potential_curves
