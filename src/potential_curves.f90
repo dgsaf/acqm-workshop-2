@@ -736,7 +736,7 @@ contains
     write (str_r_max, DP_FORMAT) basis%r_grid(basis%n_r)
 
     write (dir, *) &
-        "output/", &
+        "output/pot/", &
         "m-", trim(adjustl(str_m)), ".", &
         "parity-", trim(adjustl(str_parity)), ".", &
         "l_max-", trim(adjustl(str_l_max)), ".", &

@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # constant parameters
-alpha_l_const="1.0000"
+alpha_l_const="1.0"
 nuclei_charge="1"
 lambda_max="10"
-d_r="0.1000"
-r_max="75.0000"
-d_rz="0.5000"
-rz_max="10.0000"
+d_r="0.1"
+r_max="75.0"
+d_rz="0.5"
+rz_max="10.0"
 
 # parameter sets
 m_set="0"
 parity_set="-1 +1"
-l_max_set="0 1 2 3 4"
+l_max_set="0 1 2 3 4 5 6"
 n_basis_l_const_set="1 2 4 8 16 32"
 
 # compile
