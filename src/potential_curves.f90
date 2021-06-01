@@ -16,13 +16,14 @@ program potential_curves
   ! - <DISPLAY_VECTOR>: flag if vectors should be displayed;
   ! - <DISPLAY_MATRIX>: flag if matrices should be displayed.
 #define STDERR 0
-#define DEBUG_POTENTIAL_CURVES 1
+#define DEBUG_POTENTIAL_CURVES 2
 #define PREFIX "[debug] "
 #define ERR "[error] "
 #define TOL 1.0D-10
 #define DISPLAY_BASIS 0
 #define DISPLAY_VECTOR 1
 #define DISPLAY_MATRIX 1
+#define DP_FORMAT "(f10.4)"
 
   use io
   use laguerre
@@ -63,7 +64,7 @@ program potential_curves
   double precision , allocatable :: eigen_values(:), eigen_vectors(:, :)
 
   ! local variables
-  character(len=2000) :: output_dir
+  character(len=2000) :: parameter_dir, axial_dir
   logical :: output_exists
   integer :: i_err
   integer :: ii
@@ -229,6 +230,14 @@ program potential_curves
   call display_matrix(basis%n_basis, basis%n_basis, K)
 #endif
 
+  ! construct path of parameter directory
+  parameter_dir = parameter_directory(basis, n_basis_l_const, alpha_l_const, &
+      nuclei_charge, lambda_max)
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+  write (STDERR, *) PREFIX, "<parameter_dir> = ", trim(adjustl(parameter_dir))
+#endif
+
   ! loop over <rz_grid>
   do ii = 1, n_rz
 
@@ -237,15 +246,18 @@ program potential_curves
 #endif
 
     ! check if data already exists for this calculation
-    output_dir = parameter_directory(basis, n_basis_l_const, alpha_l_const, &
-        nuclei_charge, lambda_max, rz_grid(ii))
+    axial_dir = axial_directory(parameter_dir, rz_grid(ii))
 
-    inquire(FILE=trim(adjustl(output_dir))//"complete.txt", EXIST=output_exists)
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "<axial_dir> = ", trim(adjustl(axial_dir))
+#endif
+
+    inquire(FILE=trim(adjustl(axial_dir))//"complete.txt", EXIST=output_exists)
 
     if (output_exists) then
 #if (DEBUG_POTENTIAL_CURVES >= 1)
       write (STDERR, *) PREFIX, &
-          "<output_dir> already exists for these parameters at this <rz>"
+          "<axial_dir> already exists for these parameters at this <rz>"
       write (STDERR, *) PREFIX, "cycling"
 #endif
 
@@ -314,9 +326,13 @@ program potential_curves
 #endif
 
     call write_output(basis%n_basis, B, K, V, H, eigen_values, eigen_vectors, &
-        output_dir)
+        parameter_dir, axial_dir)
 
   end do
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+  write (STDERR, *) PREFIX, "end program potential_curves"
+#endif
 
 contains
 
@@ -587,8 +603,11 @@ contains
   end subroutine read_input
 
   ! write_output
+  !
+  ! Note: we assume by construction that
+  ! > <axial_dir> = <parameter_dir>"rz-<rz>/"
   subroutine write_output (n_basis, B, K, V, H, eigen_values, eigen_vectors, &
-      output_dir)
+      parameter_dir, axial_dir)
     integer , intent(in) :: n_basis
     double precision , intent(in) :: B(n_basis, n_basis)
     double precision , intent(in) :: K(n_basis, n_basis)
@@ -596,69 +615,88 @@ contains
     double precision , intent(in) :: H(n_basis, n_basis)
     double precision , intent(in) :: eigen_values(n_basis)
     double precision , intent(in) :: eigen_vectors(n_basis, n_basis)
-    character(len=*) , intent(in) :: output_dir
+    character(len=*) , intent(in) :: parameter_dir, axial_dir
+    logical :: matrix_exists
 
 #if (DEBUG_POTENTIAL_CURVES >= 1)
     write (STDERR, *) PREFIX, "subroutine write_output()"
 #endif
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "<output_dir> = ", trim(adjustl(output_dir))
+    write (STDERR, *) PREFIX, "<parameter_dir> = ", trim(adjustl(parameter_dir))
+    write (STDERR, *) PREFIX, "<axial_dir> = ", trim(adjustl(axial_dir))
 #endif
 
-    call execute_command_line("mkdir -p "//trim(adjustl(output_dir)))
+    call execute_command_line("mkdir -p "//trim(adjustl(parameter_dir)))
+    call execute_command_line("mkdir -p "//trim(adjustl(axial_dir)))
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "made <output_dir>"
+    write (STDERR, *) PREFIX, "made <parameter_dir>"
+    write (STDERR, *) PREFIX, "made <axial_dir>"
 #endif
 
-    ! write <B>, <K>, <V>, <H> to file
-    call write_matrix(n_basis, n_basis, B, trim(adjustl(output_dir))//"B.txt")
+    ! write <B>, <K> to file
+    inquire(FILE=trim(adjustl(parameter_dir))//"B.txt", EXIST=matrix_exists)
+    if (matrix_exists) then
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+      write (STDERR, *) PREFIX, "<B> already written in <parameter_dir>"
+#endif
+    else
+      call write_matrix(n_basis, n_basis, B, &
+          trim(adjustl(parameter_dir))//"B.txt")
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+      write (STDERR, *) PREFIX, "written <B> in <parameter_dir>"
+#endif
+    end if
+
+    inquire(FILE=trim(adjustl(parameter_dir))//"K.txt", EXIST=matrix_exists)
+    if (matrix_exists) then
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+      write (STDERR, *) PREFIX, "<K> already written in <parameter_dir>"
+#endif
+    else
+      call write_matrix(n_basis, n_basis, K, &
+          trim(adjustl(parameter_dir))//"K.txt")
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+      write (STDERR, *) PREFIX, "written <K> in <parameter_dir>"
+#endif
+    end if
+
+    ! write <V>, <H> to file
+    call write_matrix(n_basis, n_basis, V, trim(adjustl(axial_dir))//"V.txt")
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <B> to file"
+    write (STDERR, *) PREFIX, "written <V> in <axial_dir>"
 #endif
 
-    call write_matrix(n_basis, n_basis, K, trim(adjustl(output_dir))//"K.txt")
+    call write_matrix(n_basis, n_basis, H, trim(adjustl(axial_dir))//"H.txt")
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <K> to file"
-#endif
-
-    call write_matrix(n_basis, n_basis, V, trim(adjustl(output_dir))//"V.txt")
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <V> to file"
-#endif
-
-    call write_matrix(n_basis, n_basis, H, trim(adjustl(output_dir))//"H.txt")
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <H> to file"
+    write (STDERR, *) PREFIX, "written <H> in <axial_dir>"
 #endif
 
     ! write <eigen_values>, <eigen_vectors> to file
     call write_vector(n_basis, eigen_values, &
-        trim(adjustl(output_dir))//"eigen_values.txt")
+        trim(adjustl(axial_dir))//"eigen_values.txt")
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <eigen_values> to file"
+    write (STDERR, *) PREFIX, "written <eigen_values> in <axial_dir>"
 #endif
 
     call write_matrix(n_basis, n_basis, eigen_vectors, &
-        trim(adjustl(output_dir))//"eigen_vectors.txt")
+        trim(adjustl(axial_dir))//"eigen_vectors.txt")
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "written <eigen_vectors> to file"
+    write (STDERR, *) PREFIX, "written <eigen_vectors> in <axial_dir>"
 #endif
 
     ! touch complete file to register that the calculations for this set of
     ! parameters has been completely written to file
     call execute_command_line( &
-        "touch "//trim(adjustl(output_dir))//"complete.txt")
+        "touch "//trim(adjustl(axial_dir))//"complete.txt")
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "touched <complete.txt>"
+    write (STDERR, *) PREFIX, "touched <complete.txt> in <axial_dir>"
 #endif
 
 #if (DEBUG_POTENTIAL_CURVES >= 1)
@@ -670,20 +708,17 @@ contains
   ! parameter_directory
   !
   ! For given <basis>, <n_basis_l_const>, <alpha_l_const>, <nuclei_charge>,
-  ! <lambda_max>, <rz>, construct the name of the directory that output for this
+  ! <lambda_max>, construct the name of the directory that output for this
   ! calculation will be written to.
-  !
-  ! Also used to check if the calculation has already been performed before. If
-  ! it has been, this calculation can be skipped since it is a pure calculation.
   function parameter_directory (basis, n_basis_l_const, alpha_l_const, &
-      nuclei_charge, lambda_max, rz) result (output_dir)
+      nuclei_charge, lambda_max) result (dir)
     type(t_basis) , intent(in) :: basis
     integer , intent(in) :: n_basis_l_const, nuclei_charge, lambda_max
-    double precision , intent(in) :: alpha_l_const, rz
-    character(len=2000) :: output_dir
+    double precision , intent(in) :: alpha_l_const
+    character(len=2000) :: dir
     character(len=100) :: str_m, str_parity, str_l_max, str_n_basis_l_const, &
         str_alpha_l_const, str_nuclei_charge, str_lambda_max, &
-        str_d_r, str_r_max, str_rz
+        str_d_r, str_r_max
 
 #if (DEBUG_POTENTIAL_CURVES >= 1)
     write (STDERR, *) PREFIX, "function parameter_directory()"
@@ -694,14 +729,13 @@ contains
     write (str_parity, *) basis%parity
     write (str_l_max, *) basis%l_max
     write (str_n_basis_l_const, *) n_basis_l_const
-    write (str_alpha_l_const, "(f10.4)") alpha_l_const
+    write (str_alpha_l_const, DP_FORMAT) alpha_l_const
     write (str_nuclei_charge, *) nuclei_charge
     write (str_lambda_max, *) lambda_max
-    write (str_d_r, "(f10.4)") basis%r_grid(2) - basis%r_grid(1)
-    write (str_r_max, "(f10.4)") basis%r_grid(basis%n_r)
-    write (str_rz, "(f10.4)") rz
+    write (str_d_r, DP_FORMAT) basis%r_grid(2) - basis%r_grid(1)
+    write (str_r_max, DP_FORMAT) basis%r_grid(basis%n_r)
 
-    write (output_dir, *) &
+    write (dir, *) &
         "output/", &
         "m-", trim(adjustl(str_m)), ".", &
         "parity-", trim(adjustl(str_parity)), ".", &
@@ -711,15 +745,10 @@ contains
         "nuclei_charge-", trim(adjustl(str_nuclei_charge)), ".", &
         "lambda_max-", trim(adjustl(str_lambda_max)), ".", &
         "d_r-", trim(adjustl(str_d_r)), ".", &
-        "r_max-", trim(adjustl(str_r_max)), "/", &
-        "rz-", trim(adjustl(str_rz)), "/"
+        "r_max-", trim(adjustl(str_r_max)), "/"
 
 #if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "<output_dir> = ", trim(adjustl(output_dir))
-#endif
-
-#if (DEBUG_POTENTIAL_CURVES >= 2)
-    write (STDERR, *) PREFIX, "made <output_dir>"
+    write (STDERR, *) PREFIX, "<dir> = ", trim(adjustl(dir))
 #endif
 
 #if (DEBUG_POTENTIAL_CURVES >= 1)
@@ -727,5 +756,38 @@ contains
 #endif
 
   end function parameter_directory
+
+  ! axial_directory
+  !
+  ! For given <dir>, <rz>, construct the path of the sub-directory
+  ! that output for the calculation at this axial distance, <rz>, will be
+  ! written to.
+  !
+  ! Also used to check if the calculation has already been performed before.
+  function axial_directory (dir, rz) result (sub_dir)
+    character(len=*) , intent(in) :: dir
+    double precision , intent(in) :: rz
+    character(len=2000) :: sub_dir
+    character(len=100) :: str_rz
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, "function axial_directory()"
+#endif
+
+    ! construct output directory for given parameters
+    write (str_rz, DP_FORMAT) rz
+
+    write (sub_dir, *) &
+        trim(adjustl(dir)), "rz-", trim(adjustl(str_rz)), "/"
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+    write (STDERR, *) PREFIX, "<dir> = ", trim(adjustl(sub_dir))
+#endif
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, "end function axial_directory()"
+#endif
+
+  end function axial_directory
 
 end program potential_curves
