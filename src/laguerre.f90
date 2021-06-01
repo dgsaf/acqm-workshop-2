@@ -627,7 +627,7 @@ contains
     end do
 
 #if (DEBUG_LAGUERRE >= 1)
-    write (STDERR, *) PREFIX, "end subroutine setup_basis()"
+    write (STDERR, *) PREFIX, "end subroutine setup_radial()"
 #endif
 
   end subroutine setup_radial
@@ -1224,7 +1224,7 @@ contains
     ! initialise <V>
     V(:, :) = 0.0d0
 
-    ! <basis%m> as double, used in call to subroutine yint()
+    ! <basis%m> as double, used in call to function yint()
     dm = dble(basis%m)
 
     ! calculate electron-nuclei potential matrix elements
@@ -1233,19 +1233,19 @@ contains
 #endif
 
     do jj = 1, basis%n_basis
-      ! <l_j> as double, used in call to subroutine yint()
+      ! <l_j> as double, used in call to function yint()
       dl_j = dble(basis%l_list(jj))
 
       do ii = 1, basis%n_basis
         ! initialise <temp_sum>
         temp_sum = 0.0d0
 
-        ! <l_i> as double, used in call to subroutine yint()
+        ! <l_i> as double, used in call to function yint()
         dl_i = dble(basis%l_list(ii))
 
         ! sum over spherical harmonic expansion
         do lambda = 0, lambda_max, 2
-          ! <lambda> as double, used in call to subroutine yint()
+          ! <lambda> as double, used in call to function yint()
           dlam = dble(lambda)
 
           integral = integrate_trapezoid(basis%n_r, basis%r_grid, &
