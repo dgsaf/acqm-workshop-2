@@ -218,7 +218,7 @@ program vibrational
   ! <r_grid>
   allocate(v_grid(n_r))
 
-  call interpolate_potential(n_r, v_grid, i_err)
+  call interpolate_potential(n_r, r_grid, "PEC.1ssg", v_grid, i_err)
 
   if (i_err /= 0) then
 #if (DEBUG_VIBRATIONAL >= 2)
@@ -407,21 +407,119 @@ contains
   end subroutine read_input
 
   ! read_grid
-  ! TODO
-  subroutine interpolate_potential (n_r, v_grid, i_err)
+  !
+  ! For given <n_r>, <r_grid>, <filename>, read the potential from
+  ! "analytic_data/<filename>" and interpolate the potential onto <r_grid>.
+  ! Note the potential data will be read for at most <n_r> number of radial
+  ! points, with the assumption that <n_r> will exceed the number of lines in
+  ! "analytic_data/<filename>"
+  subroutine interpolate_potential (n_r, r_grid, filename, v_grid, i_err)
     integer , intent(in) :: n_r
+    double precision , intent(in) :: r_grid(n_r)
+    character(len=*) , intent(in) :: filename
     double precision , intent(out) :: v_grid(n_r)
     integer , intent(out) :: i_err
+    double precision , allocatable :: r_grid_raw(:), v_grid_raw(:)
+    double precision :: r, v
+    integer :: n_r_raw
+    integer :: fileunit
+    integer :: ii
+    integer :: io_status
 
 #if (DEBUG_VIBRATIONAL >= 1)
     write (STDERR, *) PREFIX, "subroutine interpolate_potential()"
 #endif
 
+    ! determine number of lines in file
+    n_r_raw
+
     ! open file
+    fileunit = 10
 
-    ! call INTRPL
+    open (unit=fileunit, file="analytic_data/"trim(adjustl(filename)), &
+        action="read")
 
-    ! return
+    ! count <n_r_raw>
+    n_r_raw = 0
+    do while (io_status == 0)
+      read (fileunit, *, iostat=io_status) r, v
+      if (io_status == 0) then
+        n_r_raw = n_r_raw + 1
+      end if
+    end do
+
+    ! move back to beginning of file
+    call fseek(unit=fileunit, 0, 0, i_err)
+
+    ! handle invalid file seek
+    if (i_err /= 0) then
+      i_err = 1
+#if (DEBUG_VIBRATIONAL >= 2)
+      write (STDERR, *) PREFIX, ERR, "file seek failed"
+#endif
+    end if
+
+    ! handle invalid file read
+    if (n_r_raw == 0) then
+      i_err = 1
+#if (DEBUG_VIBRATIONAL >= 2)
+      write (STDERR, *) PREFIX, ERR, "<n_r_raw> == 0"
+#endif
+    end if
+
+    ! handle invalid file read
+    if (i_err /= 0) then
+      i_err = 1
+#if (DEBUG_VIBRATIONAL >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+#if (DEBUG_VIBRATIONAL >= 1)
+      write (STDERR, *) PREFIX, ERR, "file could not be processed"
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine interpolate_potential()"
+#endif
+      return
+    end if
+
+#if (DEBUG_VIBRATIONAL >= 2)
+    write (STDERR, *) PREFIX, "file has valid lines"
+#endif
+
+    ! allocate <r_grid_raw>, <v_grid_raw>
+    allocate(r_grid_raw(n_r_raw))
+    allocate(v_grid_raw(n_r_raw))
+
+    ! read potential file
+    ii = 1
+    do while ((ii <= n_r_raw) .and. (io_status == 0))
+      read (fileunit, *, iostat=io_status) r_grid_raw(ii), v_grid_raw(ii)
+      if (io_status == 0) then
+        ii = ii + 1
+      end if
+    end do
+
+    ! handle invalid file read
+    if (ii /= n_r_raw) then
+      i_err = 1
+#if (DEBUG_VIBRATIONAL >= 2)
+      write (STDERR, *) PREFIX, ERR, "less than <n_r_raw> lines read successfully"
+#endif
+    end if
+
+    ! handle invalid file read
+    if (i_err /= 0) then
+      i_err = 1
+#if (DEBUG_VIBRATIONAL >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+#if (DEBUG_VIBRATIONAL >= 1)
+      write (STDERR, *) PREFIX, ERR, "file could not be processed"
+      write (STDERR, *) PREFIX, ERR, "exiting subroutine interpolate_potential()"
+#endif
+      return
+    end if
+
+    ! interpolate <v_grid> on <r_grid> from <v_grid_raw> on <r_grid_raw>
+    call INTRPL(n_r_raw, r_grid_raw, v_grid_raw, n_r, r_grid, v_grid)
 
 #if (DEBUG_VIBRATIONAL >= 1)
     write (STDERR, *) PREFIX, "end subroutine interpolate_potential()"
