@@ -23,7 +23,7 @@ program vibrational
 #define DISPLAY_BASIS 0
 #define DISPLAY_VECTOR 0
 #define DISPLAY_MATRIX 0
-#define DP_FORMAT "(f10.4)"
+#define DP_FORMAT "(f10.5)"
 
   use io
   use laguerre

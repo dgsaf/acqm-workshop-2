@@ -32,7 +32,7 @@ for n_basis_l_const in ${n_basis_l_const_set} ; do
     start=$(date +%s)
     printf "%4i @ [%is], " ${job} $((start - initial))
 
-    printf "params (%3i, %10.4f), " \
+    printf "params (%3i, %10.5f), " \
            ${n_basis_l_const} ${reduced_mass}
 
     bin/vibrational  ${n_basis_l_const} ${alpha_l_const} ${reduced_mass} \
