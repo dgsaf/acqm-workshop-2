@@ -38,9 +38,9 @@ program vibrational
   double precision , allocatable :: r_grid(:)
 
   ! basis parameters
-  integer :: m
-  integer :: parity
-  integer :: l_max
+  integer , parameter :: m = 0
+  integer , parameter :: parity = 1
+  integer , parameter :: l_max = 0
   integer , allocatable :: n_basis_l(:)
   double precision , allocatable :: alpha_l(:)
 
@@ -49,7 +49,7 @@ program vibrational
 
   ! one-electron homonuclear-diatomtic-molecule parameters
   double precision :: reduced_mass
-  double precision , allocatable :: v_grid(:), v_grid_raw(:)
+  double precision , allocatable :: v_grid(:)
 
   ! basis variables
   type(t_basis) :: basis
@@ -57,6 +57,9 @@ program vibrational
   ! matrix variables
   double precision , allocatable :: B(:, :), K(:, :), V(:, :), H(:, :)
   double precision , allocatable :: eigen_values(:), eigen_vectors(:, :)
+
+  ! eigen_radial radial functions
+  double precision , allocatable :: eigen_radial(:, :)
 
   ! local variables
   character(len=2000) :: parameter_dir
@@ -116,7 +119,7 @@ program vibrational
   end do
 
   ! setup <basis>
-  call setup_basis(basis, 0, 1, 0, n_basis_l, alpha_l, i_err)
+  call setup_basis(basis, m, parity, l_max, n_basis_l, alpha_l, i_err)
 
   if (i_err /= 0) then
 
@@ -161,9 +164,10 @@ program vibrational
   allocate(V(basis%n_basis, basis%n_basis))
   allocate(H(basis%n_basis, basis%n_basis))
 
-  ! allocate <eigen_values>, <eigen_vectors>
+  ! allocate <eigen_values>, <eigen_vectors>, <eigen_radial>
   allocate(eigen_values(basis%n_basis))
   allocate(eigen_vectors(basis%n_basis, basis%n_basis))
+  allocate(eigen_radial(basis%n_r, basis%n_basis))
 
   ! calculate overlap matrix
   call overlap(basis, B, i_err)
@@ -256,7 +260,7 @@ program vibrational
 #endif
 
   ! solve electronic eigenvalue equation
-  call diagonalise(basis, B, H, eigen_values, eigen_vectors, i_err)
+  call diagonalise(basis, B, H, eigen_values, eigen_vectors, eigen_radial, i_err)
 
   if (i_err /= 0) then
 #if (DEBUG_VIBRATIONAL >= 2)
@@ -278,9 +282,14 @@ program vibrational
   call display_matrix(basis%n_basis, basis%n_basis, eigen_vectors)
 #endif
 
+#if (DISPLAY_BASIS)
+  write (STDERR, *) "<eigen_radial>"
+  call display_matrix(basis%n_r, basis%r_grid, basis%n_basis, eigen_radial)
+#endif
+
   ! write output
-  call write_output(basis%n_basis, B, K, V, H, eigen_values, eigen_vectors, &
-      parameter_dir)
+  call write_output(basis, B, K, V, H, eigen_values, eigen_vectors, &
+      eigen_radial, parameter_dir)
 
 #if (DEBUG_VIBRATIONAL >= 1)
   write (STDERR, *) PREFIX, "end program vibrational"
@@ -292,16 +301,20 @@ contains
   !
   ! Note that since the call to rsg modifies the matrices it is given, we send
   ! it copies of B, H.
-  subroutine diagonalise (basis, B, H, eigen_values, eigen_vectors, i_err)
+  subroutine diagonalise (basis, B, H, eigen_values, eigen_vectors, &
+      eigen_radial, i_err)
     type(t_basis) , intent(in) :: basis
     double precision , intent(in) :: B(basis%n_basis, basis%n_basis)
     double precision , intent(in) :: H(basis%n_basis, basis%n_basis)
     double precision , intent(out) :: eigen_values(basis%n_basis)
     double precision , intent(out) :: &
         eigen_vectors(basis%n_basis, basis%n_basis)
+    double precision , intent(out) :: eigen_radial(basis%n_r, basis%n_basis)
     integer , intent(out) :: i_err
     double precision :: B_copy(basis%n_basis, basis%n_basis)
     double precision :: H_copy(basis%n_basis, basis%n_basis)
+    double precision :: temp_sum
+    integer :: ii, jj, kk
 
 #if (DEBUG_POTENTIAL_CURVES >= 1)
     write (STDERR, *) PREFIX, "subroutine diagonalise()"
@@ -329,6 +342,21 @@ contains
 
       return
     end if
+
+    ! calculate eigen-basis
+    eigen_radial(:, :) = 0.0d0
+
+    do jj = 1, basis%n_basis
+      do ii = 1, basis%n_r
+        temp_sum = 0.0d0
+
+        do kk = 1, basis%n_basis
+          temp_sum = temp_sum + (eigen_vectors(kk, jj) * basis%radial(ii, kk))
+        end do
+
+        eigen_radial(ii, jj) = temp_sum
+      end do
+    end do
 
 #if (DEBUG_POTENTIAL_CURVES >= 1)
     write (STDERR, *) PREFIX, "end subroutine diagonalise()"
@@ -465,7 +493,7 @@ contains
     double precision :: r, v
     integer :: n_r_raw
     integer :: fileunit
-    integer :: ii, pos
+    integer :: ii
     integer :: io_status
 
 #if (DEBUG_VIBRATIONAL >= 1)
@@ -616,15 +644,16 @@ contains
   end function parameter_directory
 
   ! write_output
-  subroutine write_output (n_basis, B, K, V, H, eigen_values, eigen_vectors, &
-      dir)
-    integer , intent(in) :: n_basis
-    double precision , intent(in) :: B(n_basis, n_basis)
-    double precision , intent(in) :: K(n_basis, n_basis)
-    double precision , intent(in) :: V(n_basis, n_basis)
-    double precision , intent(in) :: H(n_basis, n_basis)
-    double precision , intent(in) :: eigen_values(n_basis)
-    double precision , intent(in) :: eigen_vectors(n_basis, n_basis)
+  subroutine write_output (basis, B, K, V, H, eigen_values, eigen_vectors, &
+      eigen_radial, dir)
+    type(t_basis) , intent(in) :: basis
+    double precision , intent(in) :: B(basis%n_basis, basis%n_basis)
+    double precision , intent(in) :: K(basis%n_basis, basis%n_basis)
+    double precision , intent(in) :: V(basis%n_basis, basis%n_basis)
+    double precision , intent(in) :: H(basis%n_basis, basis%n_basis)
+    double precision , intent(in) :: eigen_values(basis%n_basis)
+    double precision , intent(in) :: eigen_vectors(basis%n_basis, basis%n_basis)
+    double precision , intent(in) :: eigen_radial(basis%n_r, basis%n_basis)
     character(len=*) , intent(in) :: dir
 
 #if (DEBUG_VIBRATIONAL >= 1)
@@ -642,42 +671,49 @@ contains
 #endif
 
     ! write <B>, <K> to file
-    call write_matrix(n_basis, n_basis, B, trim(adjustl(dir))//"B.txt")
+    call write_matrix(basis%n_basis, basis%n_basis, B, trim(adjustl(dir))//"B.txt")
 #if (DEBUG_VIBRATIONAL >= 2)
     write (STDERR, *) PREFIX, "written <B> in <dir>"
 #endif
 
-    call write_matrix(n_basis, n_basis, K, trim(adjustl(dir))//"K.txt")
+    call write_matrix(basis%n_basis, basis%n_basis, K, trim(adjustl(dir))//"K.txt")
 #if (DEBUG_VIBRATIONAL >= 2)
     write (STDERR, *) PREFIX, "written <K> in <dir>"
 #endif
 
     ! write <V>, <H> to file
-    call write_matrix(n_basis, n_basis, V, trim(adjustl(dir))//"V.txt")
+    call write_matrix(basis%n_basis, basis%n_basis, V, trim(adjustl(dir))//"V.txt")
 
 #if (DEBUG_VIBRATIONAL >= 2)
     write (STDERR, *) PREFIX, "written <V> in <dir>"
 #endif
 
-    call write_matrix(n_basis, n_basis, H, trim(adjustl(dir))//"H.txt")
+    call write_matrix(basis%n_basis, basis%n_basis, H, trim(adjustl(dir))//"H.txt")
 
 #if (DEBUG_VIBRATIONAL >= 2)
     write (STDERR, *) PREFIX, "written <H> in <dir>"
 #endif
 
     ! write <eigen_values>, <eigen_vectors> to file
-    call write_vector(n_basis, eigen_values, &
+    call write_vector(basis%n_basis, eigen_values, &
         trim(adjustl(dir))//"eigen_values.txt")
 
 #if (DEBUG_VIBRATIONAL >= 2)
     write (STDERR, *) PREFIX, "written <eigen_values> in <dir>"
 #endif
 
-    call write_matrix(n_basis, n_basis, eigen_vectors, &
+    call write_matrix(basis%n_basis, basis%n_basis, eigen_vectors, &
         trim(adjustl(dir))//"eigen_vectors.txt")
 
 #if (DEBUG_VIBRATIONAL >= 2)
     write (STDERR, *) PREFIX, "written <eigen_vectors> in <dir>"
+#endif
+
+    call write_basis(basis%n_r, basis%r_grid, basis%n_basis, eigen_radial, &
+        trim(adjustl(dir))//"eigen_radial.txt")
+
+#if (DEBUG_VIBRATIONAL >= 2)
+    write (STDERR, *) PREFIX, "written <eigen_radial> in <dir>"
 #endif
 
 #if (DEBUG_VIBRATIONAL >= 1)
