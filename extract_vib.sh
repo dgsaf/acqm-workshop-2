@@ -1,12 +1,13 @@
 #!/bin/bash
 
 # extraction parameters
-f_max="10"
+f_max="20"
+scale="0.0035"
 
 # constant parameters
 alpha_l_const="1.0"
 d_r="0.01"
-r_max="10.0"
+r_max="100.0"
 
 # directory functions
 # - ${1} = ${n_basis_l_const}
@@ -83,7 +84,7 @@ for n_basis_l_const in ${n_basis_l_const_set} ; do
       echo "${energies}" > ${tempfile}
       cat ${radialfile} >> ${tempfile}
 
-      awk -v FM="${f_max}" \
+      awk -v FM="${f_max}" -v SC="${scale}" \
           ' {\
               if (FNR==1) {\
                 for (i=1; i<=NF && i<=FM+1; i++) {\
@@ -91,8 +92,9 @@ for n_basis_l_const in ${n_basis_l_const_set} ; do
                 }\
               }\
               else {\
-                for (i=1; i<=NF && i<=FM+1; i++) {\
-                  shifted = $i + en[i];\
+                printf "%f ", $1;\
+                for (i=2; i<=NF && i<=FM+1; i++) {\
+                  shifted = (SC*$i) + en[i];\
                   printf "%f ", shifted;\
                 }\
                 printf "\n";\

@@ -592,7 +592,14 @@ contains
     close (fileunit)
 
     ! interpolate <v_grid> on <r_grid> from <v_grid_raw> on <r_grid_raw>
-    call INTRPL(n_r_raw, r_grid_raw, v_grid_raw, n_r, r_grid, v_grid)
+    call INTRPL(n_r_raw-1, r_grid_raw, v_grid_raw, n_r, r_grid, v_grid)
+
+#if (DEBUG_VIBRATIONAL >= 4)
+    write (STDERR, *) PREFIX, "<ii>, <r_grid(ii)>, <v_grid(ii)>"
+    do ii = 1, n_r
+      write (STDERR, *) PREFIX, ii, r_grid(ii), v_grid(ii)
+    end do
+#endif
 
 #if (DEBUG_VIBRATIONAL >= 1)
     write (STDERR, *) PREFIX, "end subroutine interpolate_potential()"

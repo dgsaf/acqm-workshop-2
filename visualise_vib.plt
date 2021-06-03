@@ -2,13 +2,13 @@
 
 
 # visualisation constants
-nf_max=10
+nf_max=20
 
 # constants
 alpha=1.0
 d_r=0.05
 r_max=10.0
-n2_max=8
+n2_max=7
 
 # file settings
 potential = sprintf("analytic_data/PEC.1ssg")
@@ -28,12 +28,13 @@ unset key
 set style data lines
 
 set xrange [0:6]
-set yrange [-1.5:1.5]
+set yrange [-0.62:-0.5]
 
 # H2
 mu=918.07635
 
-do for [n2=1:n2_max] {
+# do for [n2=1:n2_max] {
+do for [n2=n2_max:n2_max] {
   n = 2**n2
 
   plot potential
