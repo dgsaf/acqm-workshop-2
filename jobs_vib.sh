@@ -2,7 +2,7 @@
 
 # constant parameters
 alpha_l_const="1.0"
-d_r="0.05"
+d_r="0.01"
 r_max="10.0"
 
 # parameter sets
