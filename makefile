@@ -125,7 +125,7 @@ COMMONFLAGS = $(OPTFLAGS)
 .PHONY : homonuclear_diatomic
 
 #
-all : dirs buildinfo potential_curves
+all : dirs buildinfo potential_curves vibrational
 
 #
 allinfo : configinfo buildinfo makecommands
@@ -198,6 +198,7 @@ obj/laguerre.o : src/laguerre.f90 obj/integrate.o obj/wigner.o
 
 # bin/*
 potential_curves : bin/potential_curves
+vibrational : bin/vibrational
 
 bin/potential_curves : src/potential_curves.f90 \
 	obj/rsg.o obj/intp.o obj/wigner.o obj/io.o obj/integrate.o obj/laguerre.o
@@ -207,4 +208,14 @@ bin/potential_curves : src/potential_curves.f90 \
 
 	$(FORT) $(COMMONFLAGS) $(FFLAGS) -o bin/potential_curves \
 	obj/potential_curves.o obj/rsg.o obj/wigner.o obj/intp.o \
+	obj/io.o obj/integrate.o obj/laguerre.o
+
+bin/vibrational : src/vibrational.f90 \
+	obj/rsg.o obj/intp.o obj/wigner.o obj/io.o obj/integrate.o obj/laguerre.o
+
+	$(FORT) $(COMMONFLAGS) $(FFLAGS) -c src/vibrational.f90 \
+	-o obj/vibrational.o -I mod/
+
+	$(FORT) $(COMMONFLAGS) $(FFLAGS) -o bin/vibrational \
+	obj/vibrational.o obj/rsg.o obj/wigner.o obj/intp.o \
 	obj/io.o obj/integrate.o obj/laguerre.o

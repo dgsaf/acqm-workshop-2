@@ -48,7 +48,6 @@ program vibrational
   double precision :: alpha_l_const
 
   ! one-electron homonuclear-diatomtic-molecule parameters
-  integer :: nuclei_charge
   double precision :: reduced_mass
   double precision , allocatable :: v_grid(:), v_grid_raw(:)
 
@@ -71,9 +70,6 @@ program vibrational
 #endif
 
   ! read parameters from command line arguments
-  ! call read_input(m, parity, l_max, n_basis_l_const, alpha_l_const, &
-  !     nuclei_charge, lambda_max, d_r, r_max, d_rz, rz_max, i_err)
-  ! m = 0, parity = +1, l_max = 0, lambda_max = 0, rz_grid not used
   call read_input(n_basis_l_const, alpha_l_const, reduced_mass, &
       d_r, r_max, i_err)
 
@@ -203,7 +199,7 @@ program vibrational
   end if
 
   ! scale kinetic matrix for reduced mass
-  K(:, :) = K(:, :) / mu
+  K(:, :) = K(:, :) / reduced_mass
 
 #if (DISPLAY_MATRIX)
   write (STDERR, *) "<K>"
@@ -218,7 +214,8 @@ program vibrational
   ! <r_grid>
   allocate(v_grid(n_r))
 
-  call interpolate_potential(n_r, r_grid, "PEC.1ssg", v_grid, i_err)
+  call interpolate_potential(n_r, r_grid, "analytic_data/PEC.1ssg", v_grid, &
+      i_err)
 
   if (i_err /= 0) then
 #if (DEBUG_VIBRATIONAL >= 2)
@@ -290,6 +287,54 @@ program vibrational
 #endif
 
 contains
+
+  ! diagonalise
+  !
+  ! Note that since the call to rsg modifies the matrices it is given, we send
+  ! it copies of B, H.
+  subroutine diagonalise (basis, B, H, eigen_values, eigen_vectors, i_err)
+    type(t_basis) , intent(in) :: basis
+    double precision , intent(in) :: B(basis%n_basis, basis%n_basis)
+    double precision , intent(in) :: H(basis%n_basis, basis%n_basis)
+    double precision , intent(out) :: eigen_values(basis%n_basis)
+    double precision , intent(out) :: &
+        eigen_vectors(basis%n_basis, basis%n_basis)
+    integer , intent(out) :: i_err
+    double precision :: B_copy(basis%n_basis, basis%n_basis)
+    double precision :: H_copy(basis%n_basis, basis%n_basis)
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, "subroutine diagonalise()"
+#endif
+
+    ! create copies of B, H matrices to use in call to rsg subroutine
+    B_copy(:, :) = B(:, :)
+    H_copy(:, :) = H(:, :)
+
+    ! solve eigenvalue matrix equation
+    eigen_values(:) = 0.0d0
+    eigen_vectors(:, :) = 0.0d0
+
+    call rsg(basis%n_basis, basis%n_basis, H_copy, B_copy, eigen_values, 1, &
+        eigen_vectors, i_err)
+
+    if (i_err /= 0) then
+
+#if (DEBUG_POTENTIAL_CURVES >= 2)
+      write (STDERR, *) PREFIX, ERR, "<i_err> = ", i_err
+#endif
+
+      write (*, *) "rsg() failed"
+      write (*, *) "exiting subroutine diagonalise()"
+
+      return
+    end if
+
+#if (DEBUG_POTENTIAL_CURVES >= 1)
+    write (STDERR, *) PREFIX, "end subroutine diagonalise()"
+#endif
+
+  end subroutine diagonalise
 
   ! read_input
   subroutine read_input (n_basis_l_const, alpha_l_const, reduced_mass, &
@@ -409,10 +454,7 @@ contains
   ! read_grid
   !
   ! For given <n_r>, <r_grid>, <filename>, read the potential from
-  ! "analytic_data/<filename>" and interpolate the potential onto <r_grid>.
-  ! Note the potential data will be read for at most <n_r> number of radial
-  ! points, with the assumption that <n_r> will exceed the number of lines in
-  ! "analytic_data/<filename>"
+  ! "<filename>" and interpolate the potential onto <r_grid>.
   subroutine interpolate_potential (n_r, r_grid, filename, v_grid, i_err)
     integer , intent(in) :: n_r
     double precision , intent(in) :: r_grid(n_r)
@@ -423,24 +465,20 @@ contains
     double precision :: r, v
     integer :: n_r_raw
     integer :: fileunit
-    integer :: ii
+    integer :: ii, pos
     integer :: io_status
 
 #if (DEBUG_VIBRATIONAL >= 1)
     write (STDERR, *) PREFIX, "subroutine interpolate_potential()"
 #endif
 
-    ! determine number of lines in file
-    n_r_raw
-
     ! open file
     fileunit = 10
 
-    open (unit=fileunit, file="analytic_data/"trim(adjustl(filename)), &
-        action="read")
+    open (unit=fileunit, file=trim(adjustl(filename)), action="read")
 
-    ! count <n_r_raw>
     n_r_raw = 0
+    io_status = 0
     do while (io_status == 0)
       read (fileunit, *, iostat=io_status) r, v
       if (io_status == 0) then
@@ -448,16 +486,9 @@ contains
       end if
     end do
 
-    ! move back to beginning of file
-    call fseek(unit=fileunit, 0, 0, i_err)
-
-    ! handle invalid file seek
-    if (i_err /= 0) then
-      i_err = 1
-#if (DEBUG_VIBRATIONAL >= 2)
-      write (STDERR, *) PREFIX, ERR, "file seek failed"
+#if (DEBUG_VIBRATIONAL >= 3)
+    write (STDERR, *) PREFIX, "<n_r_raw> = ", n_r_raw
 #endif
-    end if
 
     ! handle invalid file read
     if (n_r_raw == 0) then
@@ -484,21 +515,32 @@ contains
     write (STDERR, *) PREFIX, "file has valid lines"
 #endif
 
+    ! re-open file at beginning
+    close (fileunit)
+    open (unit=fileunit, file=trim(adjustl(filename)), action="read")
+
     ! allocate <r_grid_raw>, <v_grid_raw>
     allocate(r_grid_raw(n_r_raw))
     allocate(v_grid_raw(n_r_raw))
 
     ! read potential file
+#if (DEBUG_VIBRATIONAL >= 4)
+    write (STDERR, *) PREFIX, "<ii>, <r_grid_raw(ii)>, <v_grid_raw(ii)>"
+#endif
     ii = 1
+    io_status = 0
     do while ((ii <= n_r_raw) .and. (io_status == 0))
       read (fileunit, *, iostat=io_status) r_grid_raw(ii), v_grid_raw(ii)
       if (io_status == 0) then
+#if (DEBUG_VIBRATIONAL >= 4)
+        write (STDERR, *) PREFIX, ii, r_grid_raw(ii), v_grid_raw(ii)
+#endif
         ii = ii + 1
       end if
     end do
 
     ! handle invalid file read
-    if (ii /= n_r_raw) then
+    if (ii <= n_r_raw) then
       i_err = 1
 #if (DEBUG_VIBRATIONAL >= 2)
       write (STDERR, *) PREFIX, ERR, "less than <n_r_raw> lines read successfully"
@@ -518,6 +560,9 @@ contains
       return
     end if
 
+    ! close file
+    close (fileunit)
+
     ! interpolate <v_grid> on <r_grid> from <v_grid_raw> on <r_grid_raw>
     call INTRPL(n_r_raw, r_grid_raw, v_grid_raw, n_r, r_grid, v_grid)
 
@@ -535,7 +580,7 @@ contains
   function parameter_directory (basis, n_basis_l_const, alpha_l_const, &
       reduced_mass) result (dir)
     type(t_basis) , intent(in) :: basis
-    integer , intent(in) :: n_basis_l_const, nuclei_charge
+    integer , intent(in) :: n_basis_l_const
     double precision , intent(in) :: alpha_l_const, reduced_mass
     character(len=2000) :: dir
     character(len=100) :: str_n_basis_l_const,  str_alpha_l_const, &
@@ -553,7 +598,7 @@ contains
     write (str_r_max, DP_FORMAT) basis%r_grid(basis%n_r)
 
     write (dir, *) &
-        "output/pot/", &
+        "output/vib/", &
         "n_basis_l_const-", trim(adjustl(str_n_basis_l_const)), ".", &
         "alpha_l_const-", trim(adjustl(str_alpha_l_const)), ".", &
         "reduced_mass-", trim(adjustl(str_reduced_mass)), ".", &
