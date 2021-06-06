@@ -61,6 +61,10 @@
 % - Document
 \begin{document}
 
+The entire code repository used to calculate the data for this report, and the
+\lilf{tex} file used to produce this \lilf{pdf} document, can be found at
+\url{https://github.com/dgsaf/acqm-workshop-2}.
+
 \section*{Theory}
 
 \subsection*{Basis}
@@ -739,7 +743,14 @@ least up to $\ell_{\max} = 5$).
 
 \subsection{Vibrational Wave Functions for $1s\sigma_{g}$ PEC.}
 
-Blah blah \autoref{fig:vib-1ssg}.
+The vibrational wave-functions of $\mathrm{H}_{2}^{+}$, in the $1s\sigma_{g}$
+state, were calculated by diagonalising vibrational Hamiltonian in a Laguerre
+basis, $\mathcal{B}_{128, 0}^{\lr{0, +}}$, with the vibrational potential matrix
+elements being calculated numerically, after interpolating \lilf{PEC.1ssg} onto
+the radial grid.
+The first 10 vibrational wavefunctions are shown in \autoref{fig:vib-1ssg}; note
+that the wavefunctions have been shifted by their corresponding vibrational
+energies, and scaled arbitrarily to make their presentation more convenient.
 
 \begin{figure}[h]
   \centering
@@ -808,5 +819,118 @@ Blah blah \autoref{fig:vib-1ssg}.
 
 \subsection{Lowest-Energy, $\nu = 0$, Vibrational Wave Functions for
   $1s\sigma_{g}$ PEC, for each Isotopologue of $\mathrm{H}_{2}^{+}$.}
+
+The ground-state vibrational wavefunctions are shown for $\mathrm{H}_{2}^{+}$
+and its isotopologues (indexed by their reduced mass, $\mu$) for the
+$1s\sigma_{g}$ state in
+\autoref{fig:vib-1ssg-isotopologue}.
+Note that the wavefunctions have been shifted by their vibrational energy, and
+scaled arbitrarily to allow for easier visual comparison.
+It can be seen that the vibrational ground-state energy decreases as the reduced
+mass of the isotopolgue increases.
+However, the overall behaviour is very similar, being a uni-modal
+wavefunction confined to the deepest region of the PEC.
+As the reduced mass increases, the wavefunctions become increasingly confined to
+this region.
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      use units
+      , scale = 1.8
+      , title = {
+        $\mathrm{H}_{2}^{+}$ Isotopologue Vibrational Wave Functions, for
+        $1s\sigma_{g}$ PEC.
+      }
+      , grid = major
+      , xmin = 0.0
+      , xmax = 6.0
+      , restrict x to domain=0.0:6.0
+      , ymin = -0.61
+      , ymax = -0.59
+      , restrict y to domain=-1.0:-0.4
+      , xlabel = {Axial Distance}
+      , ylabel = {Ha}
+      , x unit = {a_{0}}
+      , y unit = {Energy}
+      , legend entries
+      , legend style = {
+        cells = {anchor=east}
+        , legend pos = south east
+        , font = \tiny
+      }
+      ]
+
+      \addplot [
+      color = blue
+      ] table [x index = 0, y index = 1]
+      {../analytic_data/PEC.1ssg};
+      \addlegendentryexpanded{$PEC.1s\sigma_{g}$}
+
+      \newcommand{\vibfile}[2]{%
+        ../extracted_data/vib/n_basis_l_const-#1.reduced_mass-#2.shifted_radial.txt}
+
+      \addplot [
+      color = red!0!black
+      ] gnuplot [raw gnuplot] {
+        plot "\vibfile{128}{918.07635}" every 2 u 1:2;
+      };
+      \addlegendentryexpanded{$\mu = 918.07635$}
+
+      \addplot [
+      color = red!20!black
+      ] gnuplot [raw gnuplot] {
+        plot "\vibfile{128}{1223.89925}" every 2 u 1:2;
+      };
+      \addlegendentryexpanded{$\mu = 1223.89925$}
+
+      \addplot [
+      color = red!40!black
+      ] gnuplot [raw gnuplot] {
+        plot "\vibfile{128}{1376.39236}" every 2 u 1:2;
+      };
+      \addlegendentryexpanded{$\mu = 1376.39236$}
+
+      \addplot [
+      color = red!60!black
+      ] gnuplot [raw gnuplot] {
+        plot "\vibfile{128}{1835.24151}" every 2 u 1:2;
+      };
+      \addlegendentryexpanded{$\mu = 1835.24151$}
+
+      \addplot [
+      color = red!80!black
+      ] gnuplot [raw gnuplot] {
+        plot "\vibfile{128}{2200.87999}" every 2 u 1:2;
+      };
+      \addlegendentryexpanded{$\mu = 2200.87999$}
+
+      \addplot [
+      color = red!100!black
+      ] gnuplot [raw gnuplot] {
+        plot "\vibfile{128}{2748.46079}" every 2 u 1:2;
+      };
+      \addlegendentryexpanded{$\mu = 2748.46079$}
+
+    \end{axis}
+  \end{tikzpicture}
+  \caption
+  {
+    The ground state, $\nu = 0$, vibrational wavefunctions for
+    $\mathrm{H}_{2}^{+}$ and its isotopologues, are shown in the form
+    $a\psi_{0}^{\lr{\mu}}\lr{r} - \epsilon_{\nu}^{\lr{\mu}}$, where
+    $a = 0.0035$, and $\epsilon_{\nu}$ is the vibrational energy corresponding
+    to the isotopologues ground state.
+    These wavefunctions were calculated by diagonalising the $H_{2}^{+}$
+    vibrational Hamiltonian in a Laguerre basis
+    $\mathcal{B}_{128, 0}^{\lr{0, +}}$, using the accurate $1s\sigma_{g}$ PEC
+    (shown in blue).
+    Note that the phase-shift inversion of the first two isotopologues is a
+    by-product of the diagonalisation procedure and has no physical
+    significance.
+  }
+  \label{fig:vib-1ssg-isotopologue}
+\end{figure}
 
 \end{document}
