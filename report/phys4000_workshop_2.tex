@@ -4,7 +4,7 @@
 \usepackage{base}
 
 % - Title
-\title{...}
+\title{PHYS4000 - Workshop 2}
 \author{Tom Ross - 1834 2884}
 \date{}
 
@@ -20,5 +20,352 @@
 
 % - Document
 \begin{document}
+
+\section*{Theory}
+
+\subsection*{Basis}
+
+We utilise a complete basis of the form,
+$\mathcal{B} = \lrset{\ket{\phi_{i}}}_{i = 1}^{N}$, where the basis functions
+are represented in coordinate-space in the form
+\begin{equation}
+  \label{eq:basis}
+  \phi_{i}\lr{r, \Omega}
+  =
+  \dfrac{1}{r}
+  \varphi_{k_{i}, \ell_{i}}\lr{r}
+  Y_{\ell_{i}}^{m_{i}}\lr{\Omega}
+  \qq{for}
+  i = 1, \dotsc, N
+\end{equation}
+where the radial functions,
+$\mathcal{R} = \lrset{\ket{\varphi_{k_{i}, \ell_{i}}}}_{i = 1}^{N}$ form a
+complete basis for the radial function space, in the limit as $N \to \infty$.
+We utilise a Laguerre basis for the set of radial functions which,
+for $k = 1, 2, \dotsc$ and where $\ell \in \lrset{0, 1, \dotsc}$, are of the
+following form in coordinate-space
+\begin{equation}
+  \label{eq:basis-lag}
+  \varphi_{k, \ell}\lr{r}
+  =
+  N_{k, \ell}
+  \lr
+  {
+    2
+    \alpha_{\ell}
+    r
+  }^{\ell + 1}
+  \exponential\lr
+  {
+    -
+    \alpha_{\ell}
+    r
+  }
+  L_{k - 1}^{2 \ell + 1}\lr{2 \alpha_{\ell} r}
+\end{equation}
+where $\alpha_{\ell} \in (0, \infty)$ are arbitrarily chosen constants,
+where $N_{k, \ell}$ are the normalisation constants, given by
+\begin{equation}
+  \label{eq:basis-lag-norm}
+  N_{k, \ell}
+  =
+  \sqrt
+  {
+    \dfrac
+    {
+      \alpha_{\ell}
+      \lr{k - 1}!
+    }
+    {
+      \lr{k + \ell}
+      \lr{k + 2 \ell}!
+    }
+  }
+\end{equation}
+and where $L_{k - 1}^{2 \ell + 1}$ are the generalised Laguerre polynomials.
+
+\subsection*{Overlap Matrix Elements}
+
+The overlap matrix elements, $B_{i, j}$, are of the form
+\begin{equation}
+  \label{eq:me-overlap}
+  B_{i, j}
+  =
+  \bra*{\phi_{i}}
+  \ket*{\phi_{j}}
+  =
+  \bra*{\tfrac{1}{r}\varphi_{k_{i}, \ell_{i}}}
+  \ket*{\tfrac{1}{r}\varphi_{k_{j}, \ell_{j}}}
+  \bra*{Y_{l_{i}}^{m_{i}}}
+  \ket*{Y_{l_{j}}^{m_{j}}}
+  =
+  \bra*{\tfrac{1}{r}\varphi_{k_{i}, \ell_{i}}}
+  \ket*{\tfrac{1}{r}\varphi_{k_{j}, \ell_{j}}}
+  \delta_{l_{i}, l_{j}}
+  \delta_{m_{i}, m_{j}}
+\end{equation}
+where
+\begin{equation}
+  \label{eq:me-overlap-radial}
+  \bra*{\tfrac{1}{r}\varphi_{k_{i}, \ell}}
+  \ket*{\tfrac{1}{r}\varphi_{k_{j}, \ell}}
+  =
+  \begin{cases}
+    1
+    ,
+    &
+    \qq{if} k_{i} = k_{j}
+    \\
+    -
+    \tfrac{1}{2}
+    \sqrt
+    {
+      1
+      -
+      \dfrac
+      {
+        \ell
+        \lr{\ell + 1}
+      }
+      {
+        \lr{k_{i} + \ell}
+        \lr{k_{i} + \ell + 1}
+      }
+    }
+    ,
+    &
+    \qq{if}
+    k_{j} = k_{i} + 1
+    \\
+    \bra*{\tfrac{1}{r}\varphi_{k_{j}, \ell}}
+    \ket*{\tfrac{1}{r}\varphi_{k_{i}, \ell}}
+    ,
+    &
+    \qq{if}
+    k_{i} = k_{j} + 1
+    \\
+    0
+    ,
+    &
+    \qq{otherwise}
+    \\
+  \end{cases}
+  .
+\end{equation}
+
+\subsection*{Kinetic Matrix Elements}
+
+The kinetic matrix elements, $K_{i, j}$, are of the form
+\begin{equation}
+  \label{eq:me-kinetic}
+  K_{i, j}
+  =
+  \bra*{\phi_{i}}
+  \hat{K}
+  \ket*{\phi_{j}}
+  =
+  \alpha^{2}
+  \lr
+  {
+    \delta_{k_{i}, k_{j}}
+    -
+    \tfrac{1}{2}
+    \bra*{\tfrac{1}{r}\varphi_{k_{i}, \ell_{i}}}
+    \ket*{\tfrac{1}{r}\varphi_{k_{j}, \ell_{j}}}
+  }
+  \delta_{l_{i}, l_{j}}
+  \delta_{m_{i}, m_{j}}
+  .
+\end{equation}
+
+\subsection*{Spherically-Symmetric Potential Matrix Elements}
+For a spherically symmetric potential, $V\lr{r, \Omega} = V\lr{r}$, the
+potential matrix elements can be calculated numerically to be of the form
+\begin{equation}
+  \label{eq:me-potential-spherical}
+  V_{i, j}
+  =
+  \bra*{\phi_{i}}
+  \hat{V}
+  \ket*{\phi_{j}}
+  =
+  \bra*{\tfrac{1}{r}\varphi_{k_{i}, \ell_{i}}}
+  \hat{V}
+  \ket*{\tfrac{1}{r}\varphi_{k_{j}, \ell_{j}}}
+  \delta_{l_{i}, l_{j}}
+  \delta_{m_{i}, m_{j}}
+\end{equation}
+where
+\begin{equation}
+  \label{eq:me-potential-spherical-radial}
+  \bra*{\tfrac{1}{r}\varphi_{k_{i}, \ell_{i}}}
+  \hat{V}
+  \ket*{\tfrac{1}{r}\varphi_{k_{j}, \ell_{j}}}
+  =
+  \int_{0}^{\infty}
+  \dd{r}
+  \varphi_{k_{i}, \ell_{i}}\lr{r}
+  V\lr{r}
+  \varphi_{k_{j}, \ell_{j}}\lr{r}
+  .
+\end{equation}
+
+\clearpage
+
+\section{$\mathrm{H}_{2}^{+}$ Potential-Energy Curves}
+
+\subsection*{Details of Relevant Theory and Code}
+
+\subsubsection*{Axially-Symmetric Potential}
+The axially-symmetric potential of the $\mathrm{H}_{2}^{+}$ molecule, with two
+nuclei at $\vb{R} = \lr{0, 0, \pm \tfrac{R}{2}}$, can be written in the form
+\begin{equation}
+  \label{eq:potential-axial}
+  V\lr{r, \Omega}
+  =
+  -
+  \lr[\bigg]
+  {
+    \dfrac
+    {
+      1
+    }
+    {
+      \norm
+      {
+        \vb{r}
+        +
+        \vb{R}
+      }
+    }
+    +
+    \dfrac
+    {
+      1
+    }
+    {
+      \norm
+      {
+        \vb{r}
+        -
+        \vb{R}
+      }
+    }
+  }
+\end{equation}
+which can be written alternatively, using the multipole expansion, in the form
+\begin{equation}
+  \label{eq:potential-axial-multipole}
+  V\lr{r, \Omega}
+  =
+  -
+  2
+  \sum_{\lambda \in E}
+  \sqrt
+  {
+    \dfrac
+    {
+      4\pi
+    }
+    {
+      2\lambda
+      +
+      1
+    }
+  }
+  \dfrac
+  {
+    r_{<}^{\lambda}
+    % \lr[\big]{\min\lr{r, \tfrac{R}{2}}}^{\lambda}
+  }
+  {
+    r_{>}^{\lambda + 1}
+    % \lr[\big]{\max\lr{r, \tfrac{R}{2}}}^{\lambda + 1}
+  }
+  Y_{\lambda}^{0}\lr{\Omega}
+\end{equation}
+where $r_{<} = \min\lr{r, \tfrac{R}{2}}$, $r_{>} = \max\lr{r, \tfrac{R}{2}}$,
+and where $E = \lrset{0, 2, 4, \dotsc}$ is the set of even integers.
+Note that in computational implementations, we truncate this sum at some term,
+$\lambda_{\max}$.
+Whence, it follows that the matrix elements for this potential can be calculated
+numerically to be of the form
+\begin{alignat}{2}
+  \label{eq:me-potential-axial}
+  V_{i, j}
+  =
+  \bra*{\phi_{i}}
+  \hat{V}
+  \ket*{\phi_{j}}
+  {}={}
+  &
+  -
+  2
+  \sum_{\lambda \in E}^{\lambda_{\max}}
+  \lr[\bigg]
+  {
+    \int_{0}^{\infty}
+    \dd{r}
+    \varphi_{k_{i}, \ell_{i}}\lr{r}
+    \dfrac
+    {
+      r_{<}^{\lambda}
+    }
+    {
+      r_{>}^{\lambda + 1}
+    }
+    \varphi_{k_{j}, \ell_{j}}\lr{r}
+  }
+  \lr[\bigg]
+  {
+    \sqrt
+    {
+      \dfrac
+      {
+        4\pi
+      }
+      {
+        2\lambda
+        +
+        1
+      }
+    }
+    \bra*{Y_{\ell_{i}}^{m_{i}}}
+    Y_{\lambda}^{0}\lr{\Omega}
+    \ket*{Y_{\ell_{j}}^{m_{j}}}
+  }
+  \\
+  &
+  {}\times{}
+  \delta_{\pi_{i}, \pi_{j}}
+  \delta_{m_{i}, m_{j}}
+  \nonumber
+\end{alignat}
+where $\pi_{i} = \lr{-1}^{\ell_{i}}$ is the parity quantum number.
+
+\subsubsection*{Basis Symmetry}
+
+Due to the axial symmetry of the $\mathrm{H}_{2}^{+}$ potential, and thus the
+Hamiltonian for the electron in this molecule, we may choose a symmetrised
+basis $\mathcal{B}^{\lr{m, \pi}}$ with specified azimuthal angular momentum,
+$m$, and parity, $\pi$.
+Furthermore, due to the computational constraints, we restrict our basis to
+having $\lrset{N_{\ell}}_{\ell = 0}^{\ell_{\max}}$ radial functions per $\ell$,
+with exponential falloffs $\lrset{\alpha_{\ell}}_{\ell = 0}^{\ell_{\max}}$.
+For simplicity, we select $N_{\ell} = N_{0}$, and $\alpha_{\ell} = \alpha_{0}$,
+for each $\ell = 0, \dotsc, \ell_{max}$.
+
+\subsection{Comparison with Accurate Potential-Energy Curve for $1s\sigma_{g}$.}
+
+\subsection{Comparison with Accurate Potential-Energy Curve for $2p\sigma_{u}$.}
+
+\section{$\mathrm{H}_{2}^{+}$ Vibrational Wave Functions}
+
+\subsection*{Details of Relevant Theory and Code}
+
+\subsection{Vibrational Wave Functions for $1s\sigma_{g}$ PEC.}
+
+\subsection{Lowest-Energy, $\nu = 0$, Vibrational Wave Functions for
+  $1s\sigma_{g}$ PEC, for each Isotopologue of $\mathrm{H}_{2}^{+}$.}
 
 \end{document}
