@@ -3,6 +3,45 @@
 % - Style
 \usepackage{base}
 
+% - Plotting
+\usepackage{pgfplotstable}
+\usepgfplotslibrary{units}
+
+% - Listings
+\usepackage{color}
+\usepackage{listings}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize\color{black}
+  , commentstyle=\color{blue}
+  , keywordstyle=\color{purple}
+  , stringstyle=\color{orange}
+  %
+  , numbers=left
+  , numbersep=5pt
+  , stepnumber=1
+  , numberstyle=\ttfamily\small\color{black}
+  %
+  , keepspaces=true
+  , showspaces=false
+  , showstringspaces=false
+  , showtabs=false
+  , tabsize=2
+  , breaklines=true
+  %
+  , frame=single
+  , backgroundcolor=\color{white}
+  , rulecolor=\color{black}
+  , captionpos=b
+}
+
+% file or folder
+\lstdefinestyle{ff}{
+  basicstyle=\ttfamily\normalsize\color{purple}
+}
+
+\newcommand{\lilf}[1]{\lstinline[style=ff]{#1}}
+
 % - Title
 \title{PHYS4000 - Workshop 2}
 \author{Tom Ross - 1834 2884}
@@ -355,9 +394,343 @@ with exponential falloffs $\lrset{\alpha_{\ell}}_{\ell = 0}^{\ell_{\max}}$.
 For simplicity, we select $N_{\ell} = N_{0}$, and $\alpha_{\ell} = \alpha_{0}$,
 for each $\ell = 0, \dotsc, \ell_{max}$.
 
+\subsubsection*{Radial Grid}
+
+We utilise a radial grid of the form
+\begin{equation}
+  \label{eq:radial-grid}
+  \lrset
+  {
+    r_{i}
+    =
+    \mathrm{d_{r}}
+    \cdot
+    \lr{i - 1}
+  }_{i = 1}^{\mathrm{n_{r}}}
+\end{equation}
+with $\mathrm{n_{r}}$ is the smallest integer such that
+\begin{equation}
+  \label{eq:radial-grid-n}
+  \mathrm{d_{r}}
+  \cdot
+  \lr{\mathrm{n_{r}} - 1}
+  \geq
+  \mathrm{r}_{\max}
+  .
+\end{equation}
+Note that when we numerically evaluate matrix elements of potentials which are
+singular as $r \to 0$, we handle these integrals by searching for the first
+$r_{i}$ for which $V_{i} = V\lr{r_{i}}$ is non-singular and evaluating the
+integral from this point forwards.
+
+\subsubsection*{Computational Parameters}
+
+Across all computations performed, we have utilised $\alpha = 1$,
+$\lambda_{\max} = 10$, $\mathrm{d_{r}} = 0.1$ and $\mathrm{r}_{\max} = 75$.
+Hence, to denote a selection of computational parameters, we shall use the
+notation
+\begin{equation}
+  \label{eq:basis-parameter}
+  \mathcal{B}_{N_{0}, \ell_{\max}}^{\lr{m, \pi}}
+\end{equation}
+to indicate that the calculation has been performed with the Laguerre basis,
+with $m$, $\pi$ symmetries, with $N_{0}$ radial functions per $\ell$, and with
+$\ell = 0, \dotsc, \ell_{\max}$.
+
+\subsubsection*{Computational Procedure}
+
+The Hamiltonian for the $\mathrm{H}_{2}^{+}$ molecule was diagonalised in the
+basis $\mathcal{B}_{N_{0}, \ell_{\max}}^{\lr{m, \pi}}$, for
+$\pi \in \lrset{-1, +1}$, $m \in \lrset{0}$,
+$N_{0} \in \lrset{2^{0}, \dotsc, 2^{5}}$, and
+$\ell_{\max} \in \lrset{0, \dotsc, 6}$, across a range of axial-distance values
+$R \in \lrset{0.5, 1.0, \dotsc, 10.0}$.
+
 \subsection{Comparison with Accurate Potential-Energy Curve for $1s\sigma_{g}$.}
 
+The convergence of the $\mathrm{H}_{2}^{+}$ potential-energy curve (PEC), for
+the $1s\sigma_{g}$ state, is shown for increasing $\ell_{\max}$ in
+\autoref{fig:pec-1ssg-lmax}, and for increasing $N_{0}$ in
+\autoref{fig:pec-1ssg-n0}.
+It can be seen by comparing the two figures that increasing $N_{0}$ past a
+certain point does little to improve the accuracy of the PEC ($N_{0} = 2^{4}$
+and $N_{0} = 2^{5}$ yield essentially identical PECs), while on the other hand,
+increasing $\ell_{\max}$ continues to yield improved accuracy of the PEC (at
+least up to $\ell_{\max} = 6$).
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      use units
+      , scale = 1.8
+      , title = {
+        $\mathrm{H}_{2}^{+}$ PEC, for
+        $\mathcal{B}_{32, \ell_{\max}}^{\lr{0, +}}$ with varying $\ell_{\max}$,
+        compared with \lilf{PEC.1ssg}.
+      }
+      , grid = major
+      , xmin = 0
+      , xmax = 6
+      , ymin = -0.65
+      , ymax = 0.2
+      , xlabel = {Axial Distance}
+      , ylabel = {Energy}
+      , x unit = {a_{0}}
+      , y unit = {Ha}
+      , legend entries
+      , legend style = {
+        cells = {anchor=east}
+        , legend pos = north east
+        , font = \tiny
+      }
+      ]
+
+      \addplot [
+      color = blue
+      ] table [x index = 0, y index = 1]
+      {../analytic_data/PEC.1ssg};
+      \addlegendentryexpanded{$PEC.1s\sigma_{g}$}
+
+      \newcommand{\pecfile}[3]{%
+        ../extracted_data/pot/m-0.parity-#1.l_max-#2.n_basis_l_const-#3.txt}
+
+      \pgfplotsforeachungrouped \l in {0, 2, 4, 6} {
+        \pgfmathtruncatemacro{\i}{100.0*real(\l - 0)/real(6 - 0)}
+        \edef\temp{
+          \noexpand\addplot [
+          color = red!\i!black
+          ] table [col sep = comma, x index = 0, y index = 1]
+          {\pecfile{1}{\l}{32}};
+        }\temp
+        \addlegendentryexpanded{$\ell_{\max} = \l$}
+      }
+
+    \end{axis}
+  \end{tikzpicture}
+  \caption
+  {
+    The potential energy curves, for $\ell_{\max} = 0, 2, 4, 6$, obtained by
+    diagonalising the $\mathrm{H}_{2}^{+}$ Hamiltonian in the bases
+    $\mathcal{B}_{32, \ell_{\max}}^{\lr{0, +}}$ (shown in black-to-red), are
+    compared with the accuracte potential energy curve provided in
+    \lilf{PEC.1ssg} (shown in blue).
+    It can be seen that calculated PECs do converge to the accurate PEC, with a
+    non-negligble increase in accuracy with increasing $\ell_{\max}$.
+  }
+  \label{fig:pec-1ssg-lmax}
+\end{figure}
+%
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      use units
+      , scale = 1.8
+      , title = {
+        $\mathrm{H}_{2}^{+}$ PEC, for
+        $\mathcal{B}_{N_{0}, 6}^{\lr{0, +}}$ with varying $N_{0}$,
+        compared with \lilf{PEC.1ssg}.
+      }
+      , grid = major
+      , xmin = 0
+      , xmax = 6
+      , ymin = -0.65
+      , ymax = 0.2
+      , xlabel = {Axial Distance}
+      , ylabel = {Energy}
+      , x unit = {a_{0}}
+      , y unit = {Ha}
+      , legend entries
+      , legend style = {
+        cells = {anchor=east}
+        , legend pos = north east
+        , font = \tiny
+      }
+      ]
+
+      \addplot [
+      color = blue
+      ] table [x index = 0, y index = 1]
+      {../analytic_data/PEC.1ssg};
+      \addlegendentryexpanded{$PEC.1s\sigma_{g}$}
+
+      \newcommand{\pecfile}[3]{%
+        ../extracted_data/pot/m-0.parity-#1.l_max-#2.n_basis_l_const-#3.txt}
+
+      \pgfplotsforeachungrouped \k in {0, ..., 5} {
+        \pgfmathtruncatemacro{\n}{2^(\k)}
+        \pgfmathtruncatemacro{\i}{100.0*real(\k - 0)/real(5 - 0)}
+        \edef\temp{
+          \noexpand\addplot [
+          color = red!\i!black
+          ] table [col sep = comma, x index = 0, y index = 1]
+          {\pecfile{1}{6}{\n}};
+        }\temp
+        \addlegendentryexpanded{$N_{0} = 2^{\k}$}
+      }
+
+    \end{axis}
+  \end{tikzpicture}
+  \caption
+  {
+    The potential energy curves, for $N_{0} = 2^{0}, \dotsc, 2^{5}$, obtained by
+    diagonalising the $\mathrm{H}_{2}^{+}$ Hamiltonian in the bases
+    $\mathcal{B}_{N_{0}, 6}^{\lr{0, +}}$ (shown in black-to-red), are
+    compared with the accuracte potential energy curve provided in
+    \lilf{PEC.1ssg} (shown in blue).
+    It can be seen that calculated PECs do converge to the accurate PEC, however
+    the computational cost increases dramatically for diminishing improvements
+    in the accuracy of the PEC.
+  }
+  \label{fig:pec-1ssg-n0}
+\end{figure}
+
+\clearpage
+
 \subsection{Comparison with Accurate Potential-Energy Curve for $2p\sigma_{u}$.}
+
+The convergence of the $\mathrm{H}_{2}^{+}$ potential-energy curve (PEC), for
+the $2p\sigma_{u}$ state, is shown for increasing $\ell_{\max}$ in
+\autoref{fig:pec-2psu-lmax}, and for increasing $N_{0}$ in
+\autoref{fig:pec-2psu-n0}.
+It can be seen by comparing the two figures that increasing $N_{0}$ past a
+certain point does little to improve the accuracy of the PEC ($N_{0} = 2^{4}$
+and $N_{0} = 2^{5}$ yield essentially identical PECs), while on the other hand,
+increasing $\ell_{\max}$ continues to yield improved accuracy of the PEC (at
+least up to $\ell_{\max} = 5$).
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      use units
+      , scale = 1.8
+      , title = {
+        $\mathrm{H}_{2}^{+}$ PEC, for
+        $\mathcal{B}_{32, \ell_{\max}}^{\lr{0, -}}$ with varying $\ell_{\max}$,
+        compared with \lilf{PEC.2psu}.
+      }
+      , grid = major
+      , xmin = 0.0
+      , xmax = 6
+      , ymin = -0.6
+      , ymax = 1.0
+      , restrict y to domain=-0.5:1.5
+      , xlabel = {Axial Distance}
+      , ylabel = {Energy}
+      , x unit = {a_{0}}
+      , y unit = {Ha}
+      , legend entries
+      , legend style = {
+        cells = {anchor=east}
+        , legend pos = north east
+        , font = \tiny
+      }
+      ]
+
+      \addplot [
+      color = blue
+      ] table [x index = 0, y index = 1]
+      {../analytic_data/PEC.2psu};
+      \addlegendentryexpanded{$PEC.2p\sigma_{u}$}
+
+      \newcommand{\pecfile}[3]{%
+        ../extracted_data/pot/m-0.parity-#1.l_max-#2.n_basis_l_const-#3.txt}
+
+      \pgfplotsforeachungrouped \l in {1, 3, 5} {
+        \pgfmathtruncatemacro{\i}{100.0*real(\l - 1)/real(6 - 1)}
+        \edef\temp{
+          \noexpand\addplot [
+          color = red!\i!black
+          ] table [col sep = comma, x index = 0, y index = 1]
+          {\pecfile{-1}{\l}{32}};
+        }\temp
+        \addlegendentryexpanded{$\ell_{\max} = \l$}
+      }
+
+    \end{axis}
+  \end{tikzpicture}
+  \caption
+  {
+    The potential energy curves, for $\ell_{\max} = 1, 3, 5$, obtained by
+    diagonalising the $\mathrm{H}_{2}^{+}$ Hamiltonian in the bases
+    $\mathcal{B}_{32, \ell_{\max}}^{\lr{0, -}}$ (shown in black-to-red), are
+    compared with the accuracte potential energy curve provided in
+    \lilf{PEC.2psu} (shown in blue).
+    It can be seen that calculated PECs do converge to the accurate PEC, with a
+    non-negligble increase in accuracy with increasing $\ell_{\max}$.
+  }
+  \label{fig:pec-2psu-lmax}
+\end{figure}
+%
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      use units
+      , scale = 1.8
+      , title = {
+        $\mathrm{H}_{2}^{+}$ PEC, for
+        $\mathcal{B}_{N_{0}, 6}^{\lr{0, -}}$ with varying $N_{0}$,
+        compared with \lilf{PEC.2psu}.
+      }
+      , grid = major
+      , xmin = 0
+      , xmax = 6
+      , ymin = -0.6
+      , ymax = 1.0
+      , restrict y to domain=-0.5:1.5
+      , xlabel = {Axial Distance}
+      , ylabel = {Energy}
+      , x unit = {a_{0}}
+      , y unit = {Ha}
+      , legend entries
+      , legend style = {
+        cells = {anchor=east}
+        , legend pos = north east
+        , font = \tiny
+      }
+      ]
+
+      \addplot [
+      color = blue
+      ] table [x index = 0, y index = 1]
+      {../analytic_data/PEC.2psu};
+      \addlegendentryexpanded{$PEC.2p\sigma_{u}$}
+
+      \newcommand{\pecfile}[3]{%
+        ../extracted_data/pot/m-0.parity-#1.l_max-#2.n_basis_l_const-#3.txt}
+
+      \pgfplotsforeachungrouped \k in {0, ..., 5} {
+        \pgfmathtruncatemacro{\n}{2^(\k)}
+        \pgfmathtruncatemacro{\i}{100.0*real(\k - 0)/real(5 - 0)}
+        \edef\temp{
+          \noexpand\addplot [
+          color = red!\i!black
+          ] table [col sep = comma, x index = 0, y index = 1]
+          {\pecfile{-1}{6}{\n}};
+        }\temp
+        \addlegendentryexpanded{$N_{0} = 2^{\k}$}
+      }
+
+    \end{axis}
+  \end{tikzpicture}
+  \caption
+  {
+    The potential energy curves, for $N_{0} = 2^{0}, \dotsc, 2^{5}$, obtained by
+    diagonalising the $\mathrm{H}_{2}^{+}$ Hamiltonian in the bases
+    $\mathcal{B}_{N_{0}, 6}^{\lr{0, -}}$ (shown in black-to-red), are
+    compared with the accuracte potential energy curve provided in
+    \lilf{PEC.2psu} (shown in blue).
+    It can be seen that calculated PECs do converge to the accurate PEC, however
+    the computational cost increases dramatically for diminishing improvements
+    in the accuracy of the PEC.
+  }
+  \label{fig:pec-2psu-n0}
+\end{figure}
+
+\clearpage
 
 \section{$\mathrm{H}_{2}^{+}$ Vibrational Wave Functions}
 
